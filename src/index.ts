@@ -42,9 +42,13 @@ const cli = new Cli("structureExporter")
 
             if (simplify) {
                 await document.transform(
-                    dedup({ propertyTypes: [PropertyType.MATERIAL] }),
+                    dedup({ propertyTypes: [PropertyType.ACCESSOR] }),
                     flatten(),
                     join_2(),
+                )
+            } else {
+                await document.transform(
+                    dedup({ propertyTypes: [PropertyType.ACCESSOR] }),
                 )
             }
 
