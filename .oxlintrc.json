@@ -1,0 +1,133 @@
+{
+    "$schema": "./node_modules/oxlint/configuration_schema.json",
+    "jsPlugins": [
+        "@stylistic/eslint-plugin"
+    ],
+    "rules": {
+        "no-console": "warn",
+        "no-debugger": "warn",
+        "no-undef": "off",
+        "prefer-rest-params": "off",
+        "no-inner-declarations": "off",
+        "no-constant-condition": "off",
+        "no-control-regex": "off",
+        "@stylistic/semi": [
+            "warn",
+            "never"
+        ],
+        "@stylistic/quotes": [
+            "warn",
+            "double",
+            {
+                "allowTemplateLiterals": "always"
+            }
+        ],
+        "@stylistic/comma-dangle": [
+            "warn",
+            "always-multiline"
+        ],
+        "@stylistic/indent": [
+            "warn",
+            4
+        ],
+        "@stylistic/type-annotation-spacing": [
+            "warn",
+            {
+                "before": false,
+                "after": true,
+                "overrides": {
+                    "arrow": "ignore"
+                }
+            }
+        ],
+        "@stylistic/arrow-spacing": [
+            "warn",
+            {
+                "before": true,
+                "after": true
+            }
+        ],
+        "@stylistic/brace-style": [
+            "warn",
+            "1tbs",
+            {
+                "allowSingleLine": true
+            }
+        ],
+        "@stylistic/member-delimiter-style": [
+            "warn",
+            {
+                "multiline": {
+                    "delimiter": "none",
+                },
+                "singleline": {
+                    "delimiter": "comma",
+                    "requireLast": false
+                }
+            }
+        ],
+        "@stylistic/space-before-function-paren": [
+            "warn",
+            {
+                "anonymous": "always",
+                "named": "never",
+                "asyncArrow": "always"
+            }
+        ],
+        "@stylistic/object-curly-spacing": [
+            "warn",
+            "always"
+        ],
+        "@stylistic/function-call-spacing": [
+            "warn",
+            "never"
+        ],
+        "@stylistic/comma-spacing": [
+            "warn",
+            {
+                "before": false,
+                "after": true
+            }
+        ],
+        "@stylistic/space-infix-ops": "warn",
+        "@stylistic/keyword-spacing": [
+            "warn",
+            {
+                "before": true,
+                "after": true
+            }
+        ],
+        "@stylistic/space-before-blocks": "warn",
+        "@stylistic/block-spacing": "warn",
+        "@stylistic/space-in-parens": [
+            "warn",
+            "never"
+        ],
+        "@stylistic/array-bracket-spacing": [
+            "warn",
+            "never"
+        ],
+        "@stylistic/no-multiple-empty-lines": [
+            "warn",
+            {
+                "maxEOF": 0
+            }
+        ],
+        "@typescript-eslint/no-unused-vars": "off",
+        "@typescript-eslint/triple-slash-reference": "off",
+        "@typescript-eslint/explicit-module-boundary-types": "off",
+        "@typescript-eslint/no-non-null-assertion": "off",
+        "@typescript-eslint/no-non-null-asserted-optional-chain": "off",
+        "@typescript-eslint/no-namespace": "off",
+        "@typescript-eslint/no-explicit-any": "off",
+        "@typescript-eslint/no-empty-function": "off",
+        "@typescript-eslint/ban-ts-comment": "off",
+        "@typescript-eslint/no-empty-interface": "off",
+        "@typescript-eslint/no-this-alias": "off",
+        "@typescript-eslint/no-unused-expressions": "off",
+        "@typescript-eslint/unbound-method": "off",
+        "@typescript-eslint/no-unsafe-declaration-merging": "off",
+        "@typescript-eslint/restrict-template-expressions": "off",
+        "unicorn/no-useless-spread": "off"
+    }
+}
