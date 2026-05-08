@@ -1,4 +1,5 @@
 import { Document, Mesh, Node, vec3, vec4 } from "@gltf-transform/core"
+import { compactPrimitive } from "@gltf-transform/functions"
 import { BlockState } from "./BlockState"
 import { normaliseResourceId, SourceManager } from "./SourceManager"
 import { Vector3 } from "./Vector3"
@@ -128,6 +129,8 @@ export class ModelManager {
         const prim = this.document.createPrimitive()
             .setAttribute("POSITION", vertices)
             .setIndices(indices)
+
+        compactPrimitive(prim)
 
         return this._meshCache[faceMask] = this.document.createMesh("cube_" + faceMask).addPrimitive(prim)
     }
