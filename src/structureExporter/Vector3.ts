@@ -109,7 +109,7 @@ export class Vector3 {
     public toMapKey() { return `${this.x},${this.y},${this.z}` }
 
     public eulerToQuaternionZYX() {
-        const roll = -this.x
+        const roll = this.x
         const pitch = -this.y
         const yaw = this.z
 
