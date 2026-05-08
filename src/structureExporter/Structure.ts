@@ -1,7 +1,7 @@
 import { parse, simplify } from "prismarine-nbt"
 import { BlockState } from "./BlockState"
 import { Vector3 } from "./Vector3"
-import { NbtBlock, NbtStructure } from "./minecraftTypes"
+import { NbtBlock, NbtStructure } from "./minecraft/structure"
 
 export class Structure {
     protected readonly _blockLookup = new Map<string, NbtBlock>()

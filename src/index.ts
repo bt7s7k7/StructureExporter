@@ -6,33 +6,53 @@ import { Type } from "./struct/Type"
 import { CompositeBuilder } from "./structureExporter/CompositeBuilder"
 import { info } from "./structureExporter/log"
 import { ModelManager } from "./structureExporter/ModelManager"
+import { SourceManager } from "./structureExporter/SourceManager"
 import { Structure } from "./structureExporter/Structure"
 
-const cli = new Cli("structureExporter").addOption({
-    name: "", desc: "Exports a structure as a glTF binary embedded file",
-    params: [
-        ["input", Type.string],
-        ["output", Type.string.as(Type.nullable)],
-    ],
-    async callback(input, output) {
-        if (output == null) {
-            output = join(dirname(input), basename(input, extname(input)) + ".glb")
-        } else if (output.endsWith("/")) {
-            output += basename(input, extname(input)) + ".glb"
-        }
+const cli = new Cli("structureExporter")
+    .addOption({
+        name: "", desc: "Exports a structure as a glTF binary embedded file",
+        params: [
+            ["input", Type.string],
+            ["output", Type.string.as(Type.nullable)],
+        ],
+        options: {
+            cache: Type.string.as(Type.nullable),
+        },
+        async callback(input, output, { cache }) {
+            const sources = await SourceManager.createOrOpen(cache)
 
-        info(`Converting "${input}" -> "${output}"`)
-        const inputData = await readFile(input)
-        const structure = await Structure.load(inputData)
-        const document = new Document()
-        const scene = document.createScene()
+            if (output == null) {
+                output = join(dirname(input), basename(input, extname(input)) + ".glb")
+            } else if (output.endsWith("/")) {
+                output += basename(input, extname(input)) + ".glb"
+            }
 
-        const modelManager = new ModelManager(document)
+            info(`Converting "${input}" -> "${output}"`)
+            const inputData = await readFile(input)
+            const structure = await Structure.load(inputData)
+            const document = new Document()
+            const scene = document.createScene()
 
-        new CompositeBuilder(document, modelManager, scene).addStructure(structure)
+            const modelManager = new ModelManager(document, sources)
 
-        await writeFile(output, await new NodeIO().writeBinary(document))
-    },
-})
+            await new CompositeBuilder(document, modelManager, scene).addStructure(structure)
+
+            await writeFile(output, await new NodeIO().writeBinary(document))
+        },
+    })
+    .addOption({
+        name: "import", desc: "Loads mod or minecraft assets into the cache folder",
+        params: [
+            ["source", Type.string],
+        ],
+        options: {
+            cache: Type.string.as(Type.nullable),
+        },
+        async callback(source, { cache }) {
+            const sources = await SourceManager.createOrOpen(cache)
+            await sources.importSource(source)
+        },
+    })
 
 await cli.execute(process.argv.slice(2))

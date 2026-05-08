@@ -4,13 +4,16 @@ import { Structure } from "./Structure"
 import { Vector3 } from "./Vector3"
 
 export class CompositeBuilder {
-    public addStructure(structure: Structure) {
+    public async addStructure(structure: Structure) {
+        await this.modelManager.prepareAssets(structure.palette)
+
         for (const block of structure.blocks) {
             const pos = Vector3.fromArray(block.pos)
             const state = structure.palette[block.state]
             const node = this.document.createNode(`(${pos.toMapKey()})${state.toString()}`)
-                .setMesh(this.modelManager.getMeshFor(state))
                 .setTranslation(pos.toArray())
+
+            this.modelManager.applyBlockState(state, node)
 
             this.root.addChild(node)
         }

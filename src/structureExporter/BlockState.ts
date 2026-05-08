@@ -1,35 +1,43 @@
-import { binarySearch } from "../comTypes/util"
 
 export class BlockState {
-    protected _keys: string[] | null = null
-    protected _values: string[] | null = null
+    protected _properties: Map<string, string> | null = null
 
     public setProperty(key: string, value: string) {
-        this._keys ??= []
-        this._values ??= []
-        const index = binarySearch(this._keys, v => key.localeCompare(v, "en"))
+        (this._properties ??= new Map()).set(key, value)
+        return this
+    }
 
-        if (index < 0) {
-            this._keys.splice(-index - 1, 0, key)
-            this._values.splice(-index - 1, 0, value)
-        } else {
-            this._values[index] = value
+    public addPropertiesFromString(properties: string) {
+        if (properties == "") return this
+        for (const property of properties.split(",")) {
+            const [key, value] = property.split("=")
+            this.setProperty(key, value)
         }
-
         return this
     }
 
     public toString() {
-        return `${this.block}${this._keys == null ? "" : `[${this.getBlockStateKey()}]`}`
+        return `${this.block}${this._properties == null ? "" : `[${this.getBlockStateKey()}]`}`
     }
 
     public getBlockStateKey() {
-        if (this._keys == null) return ""
-        return this._keys.map((v, i) => `${v}=${this._values![i]}`).join(",")
+        if (this._properties == null) return ""
+        return [...this._properties].map(([key, value]) => `${key}=${value}`).join(",")
     }
 
     public [Symbol.for("nodejs.util.inspect.custom")]() {
         return this.toString()
+    }
+
+    public isSubsetOf(other: BlockState) {
+        if (this._properties == null) return true
+        if (other._properties == null) return false
+
+        for (const [key, value] of this._properties) {
+            if (other._properties.get(key) != value) return false
+        }
+
+        return true
     }
 
     constructor(

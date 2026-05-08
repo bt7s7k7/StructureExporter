@@ -7,6 +7,14 @@ export class Vector3 {
         )
     }
 
+    public add1(t: number) {
+        return new Vector3(
+            this.x + t,
+            this.y + t,
+            this.z + t,
+        )
+    }
+
     public add3(x: number, y: number, z: number) {
         return new Vector3(
             this.x + x,
@@ -20,6 +28,14 @@ export class Vector3 {
             this.x - other.x,
             this.y - other.y,
             this.z - other.z,
+        )
+    }
+
+    public sub1(t: number) {
+        return new Vector3(
+            this.x - t,
+            this.y - t,
+            this.z - t,
         )
     }
 
@@ -79,11 +95,38 @@ export class Vector3 {
         )
     }
 
+    public with(component: "x" | "y" | "z", value: number) {
+        if (component == "x") return new Vector3(value, this.y, this.z)
+        if (component == "y") return new Vector3(this.x, value, this.z)
+        return new Vector3(this.x, this.y, value)
+    }
+
     public get magnitude() { return Math.hypot(this.x, this.y, this.z) }
     public get normalized() { return this.div1(this.magnitude) }
+    public get isZero() { return this.x == 0 && this.y == 0 && this.z == 0 }
 
     public toArray(): [number, number, number] { return [this.x, this.y, this.z] }
     public toMapKey() { return `${this.x},${this.y},${this.z}` }
+
+    public eulerToQuaternionZYX() {
+        const roll = -this.x
+        const pitch = -this.y
+        const yaw = this.z
+
+        const cr = Math.cos(roll * 0.5)
+        const sr = Math.sin(roll * 0.5)
+        const cp = Math.cos(pitch * 0.5)
+        const sp = Math.sin(pitch * 0.5)
+        const cy = Math.cos(yaw * 0.5)
+        const sy = Math.sin(yaw * 0.5)
+
+        const w = cr * cp * cy + sr * sp * sy
+        const x = sr * cp * cy - cr * sp * sy
+        const y = cr * sp * cy + sr * cp * sy
+        const z = cr * cp * sy - sr * sp * cy
+
+        return [x, y, z, w] as [number, number, number, number]
+    }
 
     public *[Symbol.iterator]() {
         yield this.x
