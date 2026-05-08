@@ -1,4 +1,5 @@
-import { Document, NodeIO } from "@gltf-transform/core"
+import { Document, NodeIO, PropertyType } from "@gltf-transform/core"
+import { dedup, flatten, join as join_2 } from "@gltf-transform/functions"
 import { readFile, writeFile } from "node:fs/promises"
 import { basename, dirname, extname, join } from "node:path"
 import { Cli } from "./cli/Cli"
@@ -18,8 +19,9 @@ const cli = new Cli("structureExporter")
         ],
         options: {
             cache: Type.string.as(Type.nullable),
+            simplify: Type.boolean.as(Type.nullable),
         },
-        async callback(input, output, { cache }) {
+        async callback(input, output, { cache, simplify }) {
             const sources = await SourceManager.createOrOpen(cache)
 
             if (output == null) {
@@ -37,6 +39,14 @@ const cli = new Cli("structureExporter")
             const modelManager = new ModelManager(document, sources)
 
             await new CompositeBuilder(document, modelManager, scene).addStructure(structure)
+
+            if (simplify) {
+                await document.transform(
+                    dedup({ propertyTypes: [PropertyType.MATERIAL] }),
+                    flatten(),
+                    join_2(),
+                )
+            }
 
             await writeFile(output, await new NodeIO().writeBinary(document))
         },
