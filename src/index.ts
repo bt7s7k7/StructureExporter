@@ -4,6 +4,8 @@ import { readFile, writeFile } from "node:fs/promises"
 import { basename, dirname, extname, join } from "node:path"
 import { Cli } from "./cli/Cli"
 import { Type } from "./struct/Type"
+import { TextureAtlas } from "./structureExporter/AtlasManager"
+import { BlockBuilder } from "./structureExporter/BlockBuilder"
 import { CompositeBuilder } from "./structureExporter/CompositeBuilder"
 import { info } from "./structureExporter/log"
 import { ModelManager } from "./structureExporter/ModelManager"
@@ -20,8 +22,10 @@ const cli = new Cli("structureExporter")
         options: {
             cache: Type.string.as(Type.nullable),
             simplify: Type.boolean.as(Type.nullable),
+            dryRun: Type.boolean.as(Type.nullable),
+            dumpAtlas: Type.boolean.as(Type.nullable),
         },
-        async callback(input, output, { cache, simplify }) {
+        async callback(input, output, { cache, simplify, dryRun, dumpAtlas }) {
             const sources = await SourceManager.createOrOpen(cache)
 
             if (output == null) {
@@ -36,9 +40,20 @@ const cli = new Cli("structureExporter")
             const document = new Document()
             const scene = document.createScene()
 
-            const modelManager = new ModelManager(document, sources)
+            const modelManager = new ModelManager(sources)
 
-            await new CompositeBuilder(document, modelManager, scene).addStructure(structure)
+            await modelManager.prepareAssets(structure.palette)
+
+            const atlas = await TextureAtlas.build(document, modelManager)
+            if (dumpAtlas) {
+                await writeFile(join(dirname(output), "atlas.png"), atlas.content)
+            }
+
+            if (dryRun) return
+
+            const blockBuilder = new BlockBuilder(document, modelManager, atlas)
+
+            new CompositeBuilder(document, blockBuilder, scene).addStructure(structure)
 
             if (simplify) {
                 await document.transform(

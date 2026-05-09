@@ -1,19 +1,17 @@
 import { Document, Node, Scene } from "@gltf-transform/core"
-import { ModelManager } from "./ModelManager"
+import { BlockBuilder } from "./BlockBuilder"
 import { Structure } from "./Structure"
 import { Vector3 } from "./Vector3"
 
 export class CompositeBuilder {
-    public async addStructure(structure: Structure) {
-        await this.modelManager.prepareAssets(structure.palette)
-
+    public addStructure(structure: Structure) {
         for (const block of structure.blocks) {
             const pos = Vector3.fromArray(block.pos)
             const state = structure.palette[block.state]
             const node = this.document.createNode(`(${pos.toMapKey()})${state.toString()}`)
                 .setTranslation(pos.toArray())
 
-            this.modelManager.applyBlockState(state, node)
+            this.blockBuilder.buildBlockState(state, node)
 
             this.root.addChild(node)
         }
@@ -21,7 +19,7 @@ export class CompositeBuilder {
 
     constructor(
         public readonly document: Document,
-        public readonly modelManager: ModelManager,
+        public readonly blockBuilder: BlockBuilder,
         public readonly root: Node | Scene,
     ) { }
 }

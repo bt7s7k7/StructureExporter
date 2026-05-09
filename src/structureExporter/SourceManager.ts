@@ -2,9 +2,11 @@ import StreamZip from "node-stream-zip"
 import { mkdir, readFile } from "node:fs/promises"
 import { resolve } from "node:path"
 import { dirname, join } from "path/posix"
+import sharp from "sharp"
 import { asyncConcurrency } from "../comTypes/util"
 import { print } from "./log"
 import { BlockStateDefinition, ModelDefinition } from "./minecraft/assets"
+import { TextureResource } from "./TextureResource"
 
 export function normaliseResourceId(id: string) {
     if (!id.includes(":")) return "minecraft:" + id
@@ -80,6 +82,32 @@ export class SourceManager {
 
         const definition = JSON.parse(content) as ModelDefinition
         this._modelCache.set(id, definition)
+        return definition
+    }
+
+    protected readonly _textureCache = new Map<string, TextureResource | null>()
+
+    public async loadTexture(id: string) {
+        if (this._textureCache.has(id)) return this._textureCache.get(id)
+
+        const [namespace, path] = id.split(":")
+        let image
+        let metadata
+        try {
+            const fullPath = join(this.path, "assets", namespace, "textures", path + ".png")
+            image = sharp(fullPath)
+            metadata = await image.metadata()
+        } catch (err: any) {
+            if (err.code == "ENOENT") {
+                this._textureCache.set(id, null)
+                return null
+            }
+
+            throw err
+        }
+
+        const definition = new TextureResource(metadata.width, metadata.height, image)
+        this._textureCache.set(id, definition)
         return definition
     }
 

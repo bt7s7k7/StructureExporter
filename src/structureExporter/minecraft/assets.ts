@@ -33,7 +33,7 @@ export interface ModelElement {
 }
 
 export interface Face {
-    uv?: [number, number]
+    uv?: [number, number, number, number]
     texture: string
     cullface?: "down" | "up" | "north" | "south" | "west" | "east"
     rotation?: 0 | 90 | 180 | 270
