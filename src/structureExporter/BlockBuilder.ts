@@ -8,6 +8,7 @@ import { FaceInfo } from "./FaceInfo"
 import { FACE_DOWN, FACE_EAST, FACE_NORTH, FACE_SOUTH, FACE_UP, FACE_WEST } from "./FACES"
 import { warn } from "./log"
 import { ModelManager } from "./ModelManager"
+import { TextureResource } from "./TextureResource"
 
 const _FACE_DATA = [
     // Vertex data: 4 vertices, each has 3 components
@@ -36,6 +37,7 @@ export class BlockBuilder {
         const uvValues: number[] = []
 
         let indexStart = 0
+        let transparency: TextureResource["transparency"] = "opaque"
 
         for (const [face, vertices] of _FACE_DATA) {
             if ((faceMask & face) == 0) continue
@@ -50,6 +52,13 @@ export class BlockBuilder {
             const index = 31 - Math.clz32(face)
             const faceInfo = faces[index] ?? unreachable()
             const texture = model.resolveTexture(faceInfo.texture)
+
+            if (transparency == "opaque") {
+                if (texture.transparency != "opaque") transparency = texture.transparency
+            } else if (transparency == "scissor") {
+                if (texture.transparency == "transparent") transparency = "transparent"
+            }
+
             uvValues.push(...this.atlas.getUVs(texture, faceInfo))
         }
 
@@ -71,7 +80,13 @@ export class BlockBuilder {
             .setAttribute("POSITION", vertices)
             .setAttribute("TEXCOORD_0", uvs)
             .setIndices(indices)
-            .setMaterial(this.atlas.getOpaqueMaterial())
+            .setMaterial(transparency == "opaque" ? (
+                this.atlas.getOpaqueMaterial()
+            ) : transparency == "scissor" ? (
+                this.atlas.getScissorMaterial()
+            ) : transparency == "transparent" ? (
+                this.atlas.getTransparentMaterial()
+            ) : unreachable())
 
         compactPrimitive(prim)
 

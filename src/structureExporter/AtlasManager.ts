@@ -5,6 +5,7 @@ import layout from "layout"
 import sharp from "sharp"
 import { unreachable } from "../comTypes/util"
 import { FaceInfo } from "./FaceInfo"
+import { Stopwatch } from "./Stopwatch"
 import { TextureResource } from "./TextureResource"
 
 interface AtlasLayout<T> {
@@ -36,8 +37,20 @@ export class TextureAtlas {
 
     protected _opaqueMaterial: Material | null = null
     public getOpaqueMaterial() {
-        return this._opaqueMaterial ??= this._createTextureMaterial("atlas_opaque")
+        return this._opaqueMaterial ??= this._createTextureMaterial("block_opaque")
             .setAlphaMode("OPAQUE")
+    }
+
+    protected _scissorMaterial: Material | null = null
+    public getScissorMaterial() {
+        return this._scissorMaterial ??= this._createTextureMaterial("block_scissor")
+            .setAlphaMode("MASK")
+    }
+
+    protected _transparentMaterial: Material | null = null
+    public getTransparentMaterial() {
+        return this._transparentMaterial ??= this._createTextureMaterial("block_transparent")
+            .setAlphaMode("BLEND")
     }
 
     public getUVs(texture: TextureResource, face: FaceInfo) {
@@ -115,6 +128,8 @@ export class TextureAtlas {
             },
         }).png()
 
+        const stopwatch = new Stopwatch().start("atlas/composite")
+
         atlas.composite(await Promise.all(atlasLayout.items.map(async item => {
             const texture = item.meta
 
@@ -122,13 +137,16 @@ export class TextureAtlas {
             texture.y = item.y
 
             return {
-                input: await texture.image.toBuffer(),
+                input: await texture.image.png().toBuffer(),
                 left: item.x,
                 top: item.y,
             }
         })))
 
         const atlasData = await atlas.toBuffer()
+
+        stopwatch.end()
+
         const texture = document
             .createTexture("atlas")
             .setImage(atlasData)

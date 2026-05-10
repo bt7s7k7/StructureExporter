@@ -3,9 +3,7 @@ export function print(...msgs: any[]) {
     console.log(...msgs)
 }
 
-const _debugEnabled = !!process.env.DEBUG
 export function debug(...msgs: any[]) {
-    if (!_debugEnabled) return
     process.stdout.write("\x1b[2m")
     // oxlint-disable-next-line no-console
     console.log(...msgs)

@@ -6,6 +6,7 @@ import sharp from "sharp"
 import { asyncConcurrency } from "../comTypes/util"
 import { print } from "./log"
 import { BlockStateDefinition, ModelDefinition } from "./minecraft/assets"
+import { Stopwatch } from "./Stopwatch"
 import { TextureResource } from "./TextureResource"
 
 export function normaliseResourceId(id: string) {
@@ -106,11 +107,33 @@ export class SourceManager {
             throw err
         }
 
-        const definition = new TextureResource(metadata.width, metadata.height, image)
+        let transparency: TextureResource["transparency"] = "opaque"
+        const stopwatch = new Stopwatch()
+
+        stopwatch.start("imageAnalysis/load")
+
+        const data = await image
+            .ensureAlpha()
+            .raw()
+            .toBuffer()
+
+        stopwatch.start("imageAnalysis/work")
+
+        for (let i = 3 /* Start at 3, which is the alpha channel */; i < data.length; i += 4) {
+            const alpha = data[i]
+            if (alpha == 0) {
+                if (transparency == "opaque") transparency = "scissor"
+            } else if (alpha < 255) {
+                transparency = "transparent"
+            }
+        }
+
+        stopwatch.end()
+
+        const definition = new TextureResource(metadata.width, metadata.height, transparency, image)
         this._textureCache.set(id, definition)
         return definition
     }
-
 
     constructor(
         public readonly path: string,

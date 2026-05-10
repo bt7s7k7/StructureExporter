@@ -10,6 +10,7 @@ import { CompositeBuilder } from "./structureExporter/CompositeBuilder"
 import { info } from "./structureExporter/log"
 import { ModelManager } from "./structureExporter/ModelManager"
 import { SourceManager } from "./structureExporter/SourceManager"
+import { Stopwatch } from "./structureExporter/Stopwatch"
 import { Structure } from "./structureExporter/Structure"
 
 const cli = new Cli("structureExporter")
@@ -68,6 +69,8 @@ const cli = new Cli("structureExporter")
             }
 
             await writeFile(output, await new NodeIO().writeBinary(document))
+
+            Stopwatch.dump()
         },
     })
     .addOption({
