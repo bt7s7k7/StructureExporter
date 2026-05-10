@@ -50,7 +50,7 @@ export class BlockBuilder {
             const index = 31 - Math.clz32(face)
             const faceInfo = faces[index] ?? unreachable()
             const texture = model.resolveTexture(faceInfo.texture)
-            uvValues.push(...this.atlas.getUVs(texture, faceInfo.uv))
+            uvValues.push(...this.atlas.getUVs(texture, faceInfo))
         }
 
         const vertices = this.document.createAccessor()

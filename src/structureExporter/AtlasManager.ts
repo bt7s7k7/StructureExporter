@@ -4,6 +4,7 @@ import { ModelManager } from "./ModelManager"
 import layout from "layout"
 import sharp from "sharp"
 import { unreachable } from "../comTypes/util"
+import { FaceInfo } from "./FaceInfo"
 import { TextureResource } from "./TextureResource"
 
 interface AtlasLayout<T> {
@@ -39,19 +40,52 @@ export class TextureAtlas {
             .setAlphaMode("OPAQUE")
     }
 
-    public getUVs(texture: TextureResource, spec: readonly [number, number, number, number]) {
-        let [x1, y1, x2, y2] = spec
-        x1 = (x1 + texture.x) / this.width
-        x2 = (x2 + texture.x) / this.width
-        y1 = (y1 + texture.y) / this.height
-        y2 = (y2 + texture.y) / this.height
+    public getUVs(texture: TextureResource, face: FaceInfo) {
+        let [x1, y1, x2, y2] = face.uv
 
-        return [
-            x1, y2,
-            x2, y2,
-            x1, y1,
-            x2, y1,
-        ]
+        let uv
+        const rotation = face.rotation
+        switch (rotation) {
+            case 0:
+                uv = [
+                    x1, y2,
+                    x2, y2,
+                    x1, y1,
+                    x2, y1,
+                ]
+                break
+            case 90:
+                uv = [
+                    x2, y2,
+                    x2, y1,
+                    x1, y2,
+                    x1, y1,
+                ]
+                break
+            case 180:
+                uv = [
+                    x2, y1,
+                    x1, y1,
+                    x2, y2,
+                    x1, y2,
+                ]
+                break
+            case 270:
+                uv = [
+                    x1, y1,
+                    x1, y2,
+                    x2, y1,
+                    x2, y2,
+                ]
+                break
+        }
+
+        for (let i = 0; i < uv.length; i += 2) {
+            uv[i] = (uv[i] + texture.x) / this.width
+            uv[i + 1] = (uv[i + 1] + texture.y) / this.height
+        }
+
+        return uv
     }
 
     protected constructor(

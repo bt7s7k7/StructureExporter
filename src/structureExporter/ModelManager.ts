@@ -37,7 +37,7 @@ export class ModelManager {
             }
         }
 
-        const info = new FaceInfo(texture, uv)
+        const info = new FaceInfo(texture, uv, data.rotation ?? 0)
         element.setFaceInfo(face, info)
     }
 
