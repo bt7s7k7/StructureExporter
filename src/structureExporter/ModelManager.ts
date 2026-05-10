@@ -78,7 +78,11 @@ export class ModelManager {
                 const to = Vector3.fromArray(elementDefinition.to)
 
                 const origin = from.add(to).mul1(0.5 * (1 / 16)).sub1(0.5)
-                const scale = to.sub(from).mul1(1 / 16)
+                // Having scale with zero components, will cause the simplification process to
+                // calculate matrixes with NaN fields, causing a crash. This only happens when the
+                // process picks a node with NaN values as the first node in a material group, which
+                // is pretty random so the issue is hard to diagnose.
+                const scale = to.sub(from).mul1(1 / 16).withoutZeroes()
 
                 let element // Weird syntax for type inference
                 element = new CubicElement(model.elements.length, origin.toArray(), scale.toArray())

@@ -101,6 +101,14 @@ export class Vector3 {
         return new Vector3(this.x, this.y, value)
     }
 
+    public withoutZeroes() {
+        return new Vector3(
+            this.x == 0 ? 1e-6 : this.x,
+            this.y == 0 ? 1e-6 : this.y,
+            this.z == 0 ? 1e-6 : this.z,
+        )
+    }
+
     public get magnitude() { return Math.hypot(this.x, this.y, this.z) }
     public get normalized() { return this.div1(this.magnitude) }
     public get isZero() { return this.x == 0 && this.y == 0 && this.z == 0 }
