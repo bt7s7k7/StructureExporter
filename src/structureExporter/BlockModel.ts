@@ -11,7 +11,12 @@ export class BlockModel {
     protected readonly _textureVariables = new Map<string, TextureResource | string>()
 
     public withRotation(rotation: Vector3) {
-        return new BlockModel(this.name, this.elements, rotation.mul1(Math.PI / 180).eulerToQuaternionZYX())
+        return new BlockModel(this.name, this.elements,
+            rotation
+                .mul1(Math.PI / 180)
+                .mul3(-1, 1, 1) // Ref: minecraft:piston_head[facing=up]
+                .eulerToQuaternionZYX(),
+        )
             .copyTextureVariables(this)
     }
 
