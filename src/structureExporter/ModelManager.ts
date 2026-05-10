@@ -1,5 +1,6 @@
-import { BlockModel, BlockModelRouter } from "./BlockModel"
+import { BlockModel } from "./BlockModel"
 import { CubicElement, RotationModelElementDecorator } from "./BlockModelElement"
+import { BlockRenderingInfo } from "./BlockRenderingInfo"
 import { BlockState } from "./BlockState"
 import { BlockStatePredicate } from "./BlockStatePredicate"
 import { FACE_DOWN, FACE_EAST, FACE_NORTH, FACE_SOUTH, FACE_UP, FACE_WEST } from "./FACES"
@@ -11,10 +12,10 @@ import { warn } from "./log"
 import { BlockStateModelReference, Face } from "./minecraft/assets"
 
 export class ModelManager {
-    protected readonly _blockModels = new Map<string, BlockModelRouter>()
+    protected readonly _blockRenderingInfo = new Map<string, BlockRenderingInfo>()
 
-    public getBlockModels(block: string) {
-        return this._blockModels.get(block)
+    public getBlockRenderingInfo(block: string) {
+        return this._blockRenderingInfo.get(block)
     }
 
     protected async _addFace(generatedUv: FaceInfo["uv"], element: CubicElement, face: number, data: Face) {
@@ -133,7 +134,7 @@ export class ModelManager {
 
     public async prepareAssets(palette: BlockState[]) {
         for (const state of palette) {
-            if (this._blockModels.has(state.block)) continue
+            if (this._blockRenderingInfo.has(state.block)) continue
 
             const definition = await this.sources.loadBlockStateDefinition(state.block)
             if (definition == null) {
@@ -142,7 +143,7 @@ export class ModelManager {
             }
 
             const multipart = definition.multipart != null
-            const router = new BlockModelRouter(multipart)
+            const info = new BlockRenderingInfo(multipart)
 
             if (!multipart) {
                 if (definition.variants == null) {
@@ -151,7 +152,7 @@ export class ModelManager {
                 }
 
                 for (const [key, variant] of Object.entries(definition.variants)) {
-                    router.registerModel(BlockStatePredicate.fromString(key), await this._resolveModelReference(state.block, variant))
+                    info.registerModel(BlockStatePredicate.fromString(key), await this._resolveModelReference(state.block, variant))
                 }
             } else {
                 for (const part of definition.multipart!) {
@@ -162,11 +163,55 @@ export class ModelManager {
                         }
                     }
 
-                    router.registerModel(BlockStatePredicate.fromCondition(part.when), await this._resolveModelReference(state.block, part.apply))
+                    info.registerModel(BlockStatePredicate.fromCondition(part.when), await this._resolveModelReference(state.block, part.apply))
                 }
             }
 
-            this._blockModels.set(state.block, router)
+            this._blockRenderingInfo.set(state.block, info)
+        }
+
+        for (const info of this._blockRenderingInfo.values()) {
+            forModels: for (const model of info.getModels()) {
+                do {
+                    if (model.elements.length != 1) break
+
+                    const element = model.elements[0]
+                    if (!(element instanceof CubicElement)) break
+
+                    // Check if the element is a full block
+                    if (
+                        element.scale[0] != 1
+                        || element.scale[1] != 1
+                        || element.scale[2] != 1
+                        || element.translation[0] != 0
+                        || element.translation[1] != 0
+                        || element.translation[2] != 0
+                    ) {
+                        break
+                    }
+
+                    // If we already know the block is not opaque, we don't need to check the textures
+                    if (!info.isOpaque) continue forModels
+
+                    for (const face of element.getFaces()) {
+                        const texture = model.resolveTexture(face.texture)
+                        if (texture.transparency != "opaque") {
+                            info.isOpaque = false
+                            break
+                        }
+                    }
+
+                    continue forModels
+                } while (false)
+
+                info.isFullBlock = false
+                break
+            }
+
+            if (!info.isFullBlock) {
+                info.isOpaque = false
+                continue
+            }
         }
     }
 

@@ -1,14 +1,25 @@
-import { Document, Mesh, Node } from "@gltf-transform/core"
+import { Document, Mesh, Node, Scene } from "@gltf-transform/core"
 import { compactPrimitive } from "@gltf-transform/functions"
 import { unreachable } from "../comTypes/util"
 import { TextureAtlas } from "./AtlasManager"
 import { BlockModel } from "./BlockModel"
 import { BlockState } from "./BlockState"
 import { FaceInfo } from "./FaceInfo"
-import { FACE_DOWN, FACE_EAST, FACE_NORTH, FACE_SOUTH, FACE_UP, FACE_WEST } from "./FACES"
+import { FACE_ALL, FACE_DOWN, FACE_EAST, FACE_NORTH, FACE_SOUTH, FACE_UP, FACE_WEST } from "./FACES"
 import { warn } from "./log"
 import { ModelManager } from "./ModelManager"
+import { Structure } from "./Structure"
 import { TextureResource } from "./TextureResource"
+import { Vector3 } from "./Vector3"
+
+const _NEIGHBOURS = [
+    [FACE_EAST, new Vector3(1, 0, 0)],
+    [FACE_UP, new Vector3(0, 1, 0)],
+    [FACE_SOUTH, new Vector3(0, 0, 1)],
+    [FACE_WEST, new Vector3(-1, 0, 0)],
+    [FACE_DOWN, new Vector3(0, -1, 0)],
+    [FACE_NORTH, new Vector3(0, 0, -1)],
+] as const
 
 const _FACE_DATA = [
     // Vertex data: 4 vertices, each has 3 components
@@ -26,6 +37,19 @@ const _FACE_DATA = [
 export class BlockBuilder {
     protected _meshCache = new Map<string, Mesh>()
     protected _buffer = this.document.createBuffer()
+
+    public buildStructure(structure: Structure, root: Node | Scene) {
+        for (const block of structure.blocks) {
+            const pos = Vector3.fromArray(block.pos)
+            const state = structure.palette[block.state]
+            const node = this.document.createNode(`(${pos.toMapKey()})${state.toString()}`)
+                .setTranslation(pos.toArray())
+
+            this.buildBlockState(pos, state, node, structure)
+
+            root.addChild(node)
+        }
+    }
 
     public getBlockMesh(model: BlockModel, elementIdx: number, faceMask: number, faces: (FaceInfo | null)[]) {
         const key = `${model.name}_${elementIdx}_${faceMask}`
@@ -97,23 +121,57 @@ export class BlockBuilder {
         return mesh
     }
 
-    public buildBlockState(state: BlockState, node: Node) {
-        const possibleStates = this.models.getBlockModels(state.block)
-        if (possibleStates == null) {
+    public buildBlockState(pos: Vector3, state: BlockState, node: Node, context: Structure) {
+        const info = this.models.getBlockRenderingInfo(state.block)
+        if (info == null) {
             // We already warned about this in ModelManager.prepareAssets
             return
         }
 
-        if (possibleStates.multipart) {
+        let faceMask = FACE_ALL
+
+        if (info.isFullBlock) {
+            // Only do culling for full blocks, it's not necessarily accurate, but it will be good
+            // enough to eliminate most of the useless faces.
+            for (const [face, offset] of _NEIGHBOURS) {
+                const neighbourPosition = pos.add(offset)
+
+                const neighbour = context.getBlock(neighbourPosition)
+                if (neighbour == null) continue
+
+                const neighbourBlock = context.palette[neighbour.state].block
+                const neighbourInfo = this.models.getBlockRenderingInfo(neighbourBlock)
+                if (neighbourInfo == null) continue
+
+                if (!neighbourInfo.isFullBlock) continue
+
+                if (neighbourInfo.isOpaque) {
+                    faceMask ^= face
+                    continue
+                }
+
+                // If the neighbour is not opaque, we cull only if it's the same block (e.g. for glass faces)
+                if (state.block == neighbourBlock) {
+                    faceMask ^= face
+                }
+            }
+        }
+
+        if (info.multipart) {
             let j = 0
 
-            for (const part of possibleStates.findModels(state)) {
+            for (const part of info.findModels(state)) {
+                let rotatedFaceMask = faceMask
+                if (part.rotation) {
+                    // TODO
+                }
+
                 const partNode = this.document.createNode(`part_${j++}`)
                 node.addChild(partNode)
 
                 for (let i = 0; i < part.elements.length; i++) {
                     const child = this.document.createNode(`part_${j}_element_${i}`)
-                    part.elements[i].apply(child, part, this.document, this)
+                    part.elements[i].apply(child, part, rotatedFaceMask, this.document, this)
                     partNode.addChild(child)
                 }
 
@@ -122,18 +180,23 @@ export class BlockBuilder {
                 }
             }
         } else {
-            const model = possibleStates.findModel(state)
+            const model = info.findModel(state)
 
             if (model == null) {
                 warn(`Failed to find matching model for block state ${state}`)
                 return
             }
 
+            let rotatedFaceMask = faceMask
+            if (model.rotation) {
+                // TODO
+            }
+
             if (model.elements.length == 0) return
 
             for (let i = 0; i < model.elements.length; i++) {
                 const child = this.document.createNode(`element_${i}`)
-                model.elements[i].apply(child, model, this.document, this)
+                model.elements[i].apply(child, model, rotatedFaceMask, this.document, this)
                 node.addChild(child)
             }
 

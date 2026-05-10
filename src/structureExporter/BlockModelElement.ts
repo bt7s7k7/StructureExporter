@@ -6,7 +6,7 @@ import { FaceInfo } from "./FaceInfo"
 
 
 export abstract class BlockModelElement {
-    public abstract apply(node: Node, model: BlockModel, document: Document, builder: BlockBuilder): void
+    public abstract apply(node: Node, model: BlockModel, faceMask: number, document: Document, builder: BlockBuilder): void
     public abstract getFaces(): Generator<FaceInfo>
 }
 
@@ -25,9 +25,9 @@ export class CubicElement extends BlockModelElement {
         return this._faceInfo[index]
     }
 
-    public override apply(node: Node, model: BlockModel, document: Document, builder: BlockBuilder): void {
+    public override apply(node: Node, model: BlockModel, faceMask: number, document: Document, builder: BlockBuilder): void {
         node
-            .setMesh(builder.getBlockMesh(model, this.idx, this._faceMask, this._faceInfo))
+            .setMesh(builder.getBlockMesh(model, this.idx, this._faceMask & faceMask, this._faceInfo))
             .setTranslation(this.translation)
             .setScale(this.scale)
     }
@@ -48,9 +48,9 @@ export class CubicElement extends BlockModelElement {
 }
 
 export class RotationModelElementDecorator extends BlockModelElement {
-    public override apply(node: Node, model: BlockModel, document: Document, builder: BlockBuilder): void {
+    public override apply(node: Node, model: BlockModel, faceMask: number, document: Document, builder: BlockBuilder): void {
         const child = document.createNode("base")
-        this.base.apply(child, model, document, builder)
+        this.base.apply(child, model, faceMask, document, builder)
 
         node
             .addChild(child)

@@ -6,7 +6,6 @@ import { Cli } from "./cli/Cli"
 import { Type } from "./struct/Type"
 import { TextureAtlas } from "./structureExporter/AtlasManager"
 import { BlockBuilder } from "./structureExporter/BlockBuilder"
-import { CompositeBuilder } from "./structureExporter/CompositeBuilder"
 import { info } from "./structureExporter/log"
 import { ModelManager } from "./structureExporter/ModelManager"
 import { SourceManager } from "./structureExporter/SourceManager"
@@ -53,8 +52,7 @@ const cli = new Cli("structureExporter")
             if (dryRun) return
 
             const blockBuilder = new BlockBuilder(document, modelManager, atlas)
-
-            new CompositeBuilder(document, blockBuilder, scene).addStructure(structure)
+            blockBuilder.buildStructure(structure, scene)
 
             if (simplify) {
                 await document.transform(
