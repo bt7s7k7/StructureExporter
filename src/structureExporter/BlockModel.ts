@@ -14,8 +14,8 @@ export class BlockModel {
             .eulerToQuaternionZYX()
     )
 
-    public withRotation(rotation: Vector3) {
-        return new BlockModel(this.name, this.elements, rotation).copyTextureVariables(this)
+    public withOptions(rotation: Vector3 | null, lockUv: boolean) {
+        return new BlockModel(this.name, this.elements, rotation, lockUv).copyTextureVariables(this)
     }
 
     public setTextureVariable(key: string, value: TextureResource | string) {
@@ -57,5 +57,6 @@ export class BlockModel {
         public readonly name: string,
         public readonly elements: BlockModelElement[],
         public readonly rotation: Vector3 | null,
+        public readonly lockUv: boolean,
     ) { }
 }

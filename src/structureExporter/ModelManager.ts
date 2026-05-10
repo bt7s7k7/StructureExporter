@@ -228,21 +228,22 @@ export class ModelManager {
 
         if (modelRef.model == null) {
             warn("Missing model from model reference")
-            return new BlockModel("missing::" + owner, [], null)
+            return new BlockModel("missing::" + owner, [], null, false)
         }
 
         const modelId = normaliseResourceId(modelRef.model)
 
         let variantModel = this._modelCache.get(modelId)
         if (variantModel == null) {
-            variantModel = new BlockModel(modelId, [], null)
+            variantModel = new BlockModel(modelId, [], null, false)
             await this._loadModel(modelId, variantModel)
             this._modelCache.set(modelId, variantModel)
         }
 
-        if (!rotation.isZero) {
-            variantModel = variantModel.withRotation(rotation)
+        if (!rotation.isZero || modelRef.uvlock) {
+            variantModel = variantModel.withOptions(rotation, !!modelRef.uvlock)
         }
+
         return variantModel
     }
 

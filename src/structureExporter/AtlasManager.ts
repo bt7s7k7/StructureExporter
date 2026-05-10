@@ -5,8 +5,10 @@ import layout from "layout"
 import sharp from "sharp"
 import { unreachable } from "../comTypes/util"
 import { FaceInfo } from "./FaceInfo"
+import { FACE_DOWN, FACE_EAST, FACE_NORTH, FACE_SOUTH, FACE_UP, FACE_WEST } from "./FACES"
 import { Stopwatch } from "./Stopwatch"
 import { TextureResource } from "./TextureResource"
+import { Vector3 } from "./Vector3"
 
 interface AtlasLayout<T> {
     height: number
@@ -53,12 +55,11 @@ export class TextureAtlas {
             .setAlphaMode("BLEND")
     }
 
-    public getUVs(texture: TextureResource, face: FaceInfo) {
+    public getUVs(texture: TextureResource, face: FaceInfo, direction: number, rotation: Vector3 | null) {
         let [x1, y1, x2, y2] = face.uv
 
         let uv
-        const rotation = face.rotation
-        switch (rotation) {
+        switch (face.rotation) {
             case 0:
                 uv = [
                     x1, y2,
@@ -93,6 +94,113 @@ export class TextureAtlas {
                 break
         }
 
+        // Rotation code inspired by BramStoutProductions/MiEx
+        // Source: https://github.com/BramStoutProductions/MiEx/blob/main/src/nl/bramstout/mcworldexporter/model/ModelFace.java
+        // Method: ModelFace.rotate
+        if (rotation != null) {
+            if (direction == FACE_WEST || direction == FACE_EAST) {
+                let angle = rotation.x
+                if (direction == FACE_EAST) angle = 360 - angle
+                switch (angle) {
+                    case 90: {
+                        let cx = texture.width * 0.5
+                        let cy = texture.height * 0.5
+
+                        for (let i = 0; i < uv.length; i += 2) {
+                            let x = (uv[i + 1] - cy) + cx
+                            let y = -(uv[i] - cx) + cy
+                            uv[i] = x
+                            uv[i + 1] = y
+                        }
+                        break
+                    }
+                    case 180:
+                        for (let i = 0; i < uv.length; i += 2) {
+                            uv[i] = texture.width - uv[i]
+                            uv[i + 1] = texture.height - uv[i + 1]
+                        }
+                        break
+                    case 270: {
+                        let cx = texture.width * 0.5
+                        let cy = texture.height * 0.5
+
+                        for (let i = 0; i < uv.length; i += 2) {
+                            let x = -(uv[i + 1] - cy) + cx
+                            let y = (uv[i] - cx) + cy
+                            uv[i] = x
+                            uv[i + 1] = y
+                        }
+                        break
+                    }
+                }
+            }
+
+            {
+                let angle = rotation.x
+                while (angle >= 90) {
+                    angle -= 90
+
+                    if (direction == FACE_DOWN) {
+                        direction = FACE_SOUTH
+                    } else if (direction == FACE_SOUTH) {
+                        direction = FACE_UP
+                    } else if (direction == FACE_UP) {
+                        direction = FACE_NORTH
+
+                        for (let i = 0; i < uv.length; i += 2) {
+                            uv[i] = texture.width - uv[i]
+                            uv[i + 1] = texture.height - uv[i + 1]
+                        }
+                    } else if (direction == FACE_NORTH) {
+                        direction = FACE_DOWN
+
+                        for (let i = 0; i < uv.length; i += 2) {
+                            uv[i] = texture.width - uv[i]
+                            uv[i + 1] = texture.height - uv[i + 1]
+                        }
+                    }
+                }
+            }
+
+            if (direction == FACE_DOWN || direction == FACE_UP) {
+                let angle = rotation.y
+                if (direction == FACE_UP) angle = 360 - angle
+                switch (angle) {
+                    case 90: {
+                        let cx = texture.width * 0.5
+                        let cy = texture.height * 0.5
+
+                        for (let i = 0; i < uv.length; i += 2) {
+                            let x = (uv[i + 1] - cy) + cx
+                            let y = -(uv[i] - cx) + cy
+                            uv[i] = x
+                            uv[i + 1] = y
+                        }
+                        break
+                    }
+                    case 180:
+                        for (let i = 0; i < uv.length; i += 2) {
+                            uv[i] = texture.width - uv[i]
+                            uv[i + 1] = texture.height - uv[i + 1]
+                        }
+                        break
+                    case 270: {
+                        let cx = texture.width * 0.5
+                        let cy = texture.height * 0.5
+
+                        for (let i = 0; i < uv.length; i += 2) {
+                            let x = -(uv[i + 1] - cy) + cx
+                            let y = (uv[i] - cx) + cy
+                            uv[i] = x
+                            uv[i + 1] = y
+                        }
+                        break
+                    }
+                }
+            }
+        }
+
+        // The UVs are in pixel coordinates local to the texture, convert them to global 0..1 UVs
         for (let i = 0; i < uv.length; i += 2) {
             uv[i] = (uv[i] + texture.x) / this.width
             uv[i + 1] = (uv[i + 1] + texture.y) / this.height

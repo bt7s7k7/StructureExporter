@@ -52,7 +52,13 @@ export class BlockBuilder {
     }
 
     public getBlockMesh(model: BlockModel, elementIdx: number, faceMask: number, faces: (FaceInfo | null)[]) {
-        const key = `${model.name}_${elementIdx}_${faceMask}`
+        let key = `${model.name}_${elementIdx}_${faceMask}`
+        let rotation: Vector3 | null = null
+        if (model.lockUv && model.rotation) {
+            rotation = model.rotation
+            key += `_${rotation.toMapKey()}`
+        }
+
         const existing = this._meshCache.get(key)
         if (existing) return existing
 
@@ -83,7 +89,7 @@ export class BlockBuilder {
                 if (texture.transparency == "transparent") transparency = "transparent"
             }
 
-            uvValues.push(...this.atlas.getUVs(texture, faceInfo))
+            uvValues.push(...this.atlas.getUVs(texture, faceInfo, face, rotation))
         }
 
         const vertices = this.document.createAccessor()
