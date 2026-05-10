@@ -121,6 +121,72 @@ export class BlockBuilder {
         return mesh
     }
 
+    protected _buildModel(model: BlockModel, faceMask: number, node: Node) {
+        if (model.rotation) {
+            let { x, y, z } = model.rotation
+
+            if (z != 0) {
+                warn(`Unsupported rotation in Z axis for model ${model.name}`)
+            }
+
+            if (y != 0) {
+                while (y < 0) {
+                    y += 360
+                }
+
+                while (y > 360) {
+                    y -= 360
+                }
+
+                for (; y > 0; y -= 90) {
+                    // FACE_NORTH
+                    // FACE_EAST
+                    // FACE_SOUTH
+                    // FACE_WEST
+                    faceMask = (faceMask & (FACE_UP | FACE_DOWN))
+                        | ((faceMask & FACE_EAST) != 0 ? FACE_NORTH : 0)
+                        | ((faceMask & FACE_SOUTH) != 0 ? FACE_EAST : 0)
+                        | ((faceMask & FACE_WEST) != 0 ? FACE_SOUTH : 0)
+                        | ((faceMask & FACE_NORTH) != 0 ? FACE_WEST : 0)
+                }
+            }
+
+            if (x != 0) {
+                while (x < 0) {
+                    x += 360
+                }
+
+                while (x > 360) {
+                    x -= 360
+                }
+
+                for (; x > 0; x -= 90) {
+                    // FACE_NORTH
+                    // FACE_UP
+                    // FACE_SOUTH
+                    // FACE_DOWN
+                    faceMask = (faceMask & (FACE_EAST | FACE_WEST))
+                        | ((faceMask & FACE_UP) != 0 ? FACE_SOUTH : 0)
+                        | ((faceMask & FACE_SOUTH) != 0 ? FACE_DOWN : 0)
+                        | ((faceMask & FACE_DOWN) != 0 ? FACE_NORTH : 0)
+                        | ((faceMask & FACE_NORTH) != 0 ? FACE_UP : 0)
+                }
+            }
+        }
+
+        if (model.elements.length == 0) return
+
+        for (let i = 0; i < model.elements.length; i++) {
+            const child = this.document.createNode(`element_${i}`)
+            model.elements[i].apply(child, model, faceMask, this.document, this)
+            node.addChild(child)
+        }
+
+        if (model.rotationQuaternion) {
+            node.setRotation(model.rotationQuaternion)
+        }
+    }
+
     public buildBlockState(pos: Vector3, state: BlockState, node: Node, context: Structure) {
         const info = this.models.getBlockRenderingInfo(state.block)
         if (info == null) {
@@ -160,24 +226,11 @@ export class BlockBuilder {
         if (info.multipart) {
             let j = 0
 
-            for (const part of info.findModels(state)) {
-                let rotatedFaceMask = faceMask
-                if (part.rotation) {
-                    // TODO
-                }
-
+            for (const model of info.findModels(state)) {
                 const partNode = this.document.createNode(`part_${j++}`)
                 node.addChild(partNode)
 
-                for (let i = 0; i < part.elements.length; i++) {
-                    const child = this.document.createNode(`part_${j}_element_${i}`)
-                    part.elements[i].apply(child, part, rotatedFaceMask, this.document, this)
-                    partNode.addChild(child)
-                }
-
-                if (part.rotation) {
-                    partNode.setRotation(part.rotation)
-                }
+                this._buildModel(model, faceMask, partNode)
             }
         } else {
             const model = info.findModel(state)
@@ -187,22 +240,7 @@ export class BlockBuilder {
                 return
             }
 
-            let rotatedFaceMask = faceMask
-            if (model.rotation) {
-                // TODO
-            }
-
-            if (model.elements.length == 0) return
-
-            for (let i = 0; i < model.elements.length; i++) {
-                const child = this.document.createNode(`element_${i}`)
-                model.elements[i].apply(child, model, rotatedFaceMask, this.document, this)
-                node.addChild(child)
-            }
-
-            if (model.rotation) {
-                node.setRotation(model.rotation)
-            }
+            this._buildModel(model, faceMask, node)
         }
     }
 

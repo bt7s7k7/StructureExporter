@@ -31,10 +31,8 @@ export class BlockRenderingInfo {
         }
     }
 
-    public *getModels() {
-        for (const [, model] of this._states) {
-            yield model
-        }
+    public getModels() {
+        return new Set(this._states.map(([, model]) => model))
     }
 
     constructor(

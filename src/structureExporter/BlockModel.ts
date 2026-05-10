@@ -7,15 +7,15 @@ import { warn } from "./log"
 
 export class BlockModel {
     protected readonly _textureVariables = new Map<string, TextureResource | string>()
+    public readonly rotationQuaternion: vec4 | null = this.rotation == null ? null : (
+        this.rotation
+            .mul1(Math.PI / 180)
+            .mul3(-1, 1, 1) // Ref: minecraft:piston_head[facing=up]
+            .eulerToQuaternionZYX()
+    )
 
     public withRotation(rotation: Vector3) {
-        return new BlockModel(this.name, this.elements,
-            rotation
-                .mul1(Math.PI / 180)
-                .mul3(-1, 1, 1) // Ref: minecraft:piston_head[facing=up]
-                .eulerToQuaternionZYX(),
-        )
-            .copyTextureVariables(this)
+        return new BlockModel(this.name, this.elements, rotation).copyTextureVariables(this)
     }
 
     public setTextureVariable(key: string, value: TextureResource | string) {
@@ -56,6 +56,6 @@ export class BlockModel {
     constructor(
         public readonly name: string,
         public readonly elements: BlockModelElement[],
-        public readonly rotation: vec4 | null,
+        public readonly rotation: Vector3 | null,
     ) { }
 }
