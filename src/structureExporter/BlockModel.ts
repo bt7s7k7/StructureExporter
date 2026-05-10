@@ -1,6 +1,7 @@
 import { vec4 } from "@gltf-transform/core"
 import { BlockModelElement } from "./BlockModelElement"
 import { BlockState } from "./BlockState"
+import { BlockStatePredicate } from "./BlockStatePredicate"
 import { TextureResource } from "./TextureResource"
 import { Vector3 } from "./Vector3"
 import { warn } from "./log"
@@ -57,15 +58,15 @@ export class BlockModel {
 }
 
 export class BlockModelRouter {
-    protected readonly _states: [BlockState, BlockModel][] = []
+    protected readonly _states: [BlockStatePredicate, BlockModel][] = []
 
-    public registerModel(state: BlockState, model: BlockModel) {
+    public registerModel(state: BlockStatePredicate, model: BlockModel) {
         this._states.push([state, model])
     }
 
     public findModel(target: BlockState) {
         for (const [state, model] of this._states) {
-            if (state.isSubsetOf(target)) {
+            if (state.matches(target)) {
                 return model
             }
         }
@@ -75,7 +76,7 @@ export class BlockModelRouter {
 
     public *findModels(target: BlockState) {
         for (const [state, model] of this._states) {
-            if (state.isSubsetOf(target)) {
+            if (state.matches(target)) {
                 yield model
             }
         }

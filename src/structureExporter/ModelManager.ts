@@ -1,6 +1,7 @@
 import { BlockModel, BlockModelRouter } from "./BlockModel"
 import { CubicElement, RotationModelElementDecorator } from "./BlockModelElement"
 import { BlockState } from "./BlockState"
+import { BlockStatePredicate } from "./BlockStatePredicate"
 import { FACE_DOWN, FACE_EAST, FACE_NORTH, FACE_SOUTH, FACE_UP, FACE_WEST } from "./FACES"
 import { FaceInfo } from "./FaceInfo"
 import { normaliseResourceId, SourceManager } from "./SourceManager"
@@ -146,8 +147,7 @@ export class ModelManager {
                 }
 
                 for (const [key, variant] of Object.entries(definition.variants)) {
-                    const variantState = new BlockState(state.block).addPropertiesFromString(key)
-                    router.registerModel(variantState, await this._resolveModelReference(state.block, variant))
+                    router.registerModel(BlockStatePredicate.fromString(key), await this._resolveModelReference(state.block, variant))
                 }
             } else {
                 for (const part of definition.multipart!) {
@@ -158,7 +158,7 @@ export class ModelManager {
                         }
                     }
 
-                    router.registerModel(partState, await this._resolveModelReference(state.block, part.apply))
+                    router.registerModel(BlockStatePredicate.fromCondition(part.when), await this._resolveModelReference(state.block, part.apply))
                 }
             }
 

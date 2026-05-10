@@ -3,8 +3,13 @@ export interface BlockStateDefinition {
     multipart?: BlockStatePart[]
 }
 
+export type BlockStatePartCondition =
+    | { "AND": Record<string, string>[] }
+    | { "OR": Record<string, string>[] }
+    | Record<string, string>
+
 export interface BlockStatePart {
-    when?: Record<string, string>
+    when?: BlockStatePartCondition
     apply: BlockStateModelReference | BlockStateModelReference[]
 }
 
