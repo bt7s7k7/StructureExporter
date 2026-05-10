@@ -8,7 +8,7 @@ yarn-error.log
 build
 dev
 
-cache
+/resources
 
 # UCPEM
 ucpem_ports

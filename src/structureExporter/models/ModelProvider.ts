@@ -1,6 +1,6 @@
-import { normaliseResourceId, ResourceProvider } from "../ResourceProvider"
 import { BlockState } from "../building/BlockState"
 import { BlockStateModelReference, Face } from "../minecraft/assets"
+import { normaliseResourceId, ResourceProvider } from "../resources/ResourceProvider"
 import { FACE_DOWN, FACE_EAST, FACE_NORTH, FACE_SOUTH, FACE_UP, FACE_WEST } from "../support/FACES"
 import { Vector3 } from "../support/Vector3"
 import { warn } from "../support/log"
@@ -140,6 +140,10 @@ export class ModelProvider {
             const definition = await this.resourceProvider.loadBlockStateDefinition(state.block)
             if (definition == null) {
                 warn(`Sources do not include block state file ${state.block}`)
+                const info = new BlockRenderingInfo(false)
+                const model = await this._resolveModelReference(state.block, null)
+                info.registerModel(BlockStatePredicate.fromString(""), new BlockModel(state.block, [CubicElement.getFallback()], null, false))
+                this._blockRenderingInfo.set(state.block, info)
                 continue
             }
 
@@ -217,30 +221,41 @@ export class ModelProvider {
         }
     }
 
-    protected async _resolveModelReference(owner: string, modelRef: BlockStateModelReference | BlockStateModelReference[]) {
+    protected _fallbackModel: BlockModel | null = null
+
+    protected async _resolveModelReference(owner: string, modelRef: BlockStateModelReference | BlockStateModelReference[] | null) {
         if (Array.isArray(modelRef)) {
             modelRef = modelRef[0]
         }
+
+        let model
+        if (modelRef == null || modelRef.model == null) {
+            warn("Missing model from model reference in " + owner)
+            if (this._fallbackModel) {
+                model = this._fallbackModel
+            } else {
+                model = new BlockModel("missing", [CubicElement.getFallback()], null, false)
+                this._modelCache.set(model.name, model)
+                this._fallbackModel = model
+            }
+        } else {
+            const modelId = normaliseResourceId(modelRef.model)
+
+            model = this._modelCache.get(modelId)
+            if (model == null) {
+                model = new BlockModel(modelId, [], null, false)
+                await this._loadModel(modelId, model)
+                this._modelCache.set(modelId, model)
+            }
+        }
+
+        if (modelRef == null) return model
 
         let rotation = Vector3.ZERO
 
         if (modelRef.x != null) rotation = rotation.with("x", modelRef.x)
         if (modelRef.y != null) rotation = rotation.with("y", modelRef.y)
         if (modelRef.z != null) rotation = rotation.with("z", modelRef.z)
-
-        if (modelRef.model == null) {
-            warn("Missing model from model reference")
-            return new BlockModel("missing::" + owner, [], null, false)
-        }
-
-        const modelId = normaliseResourceId(modelRef.model)
-
-        let model = this._modelCache.get(modelId)
-        if (model == null) {
-            model = new BlockModel(modelId, [], null, false)
-            await this._loadModel(modelId, model)
-            this._modelCache.set(modelId, model)
-        }
 
         if (!rotation.isZero || modelRef.uvlock) {
             model = model.withOptions(rotation, !!modelRef.uvlock)

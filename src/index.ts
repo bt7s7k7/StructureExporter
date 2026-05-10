@@ -7,7 +7,8 @@ import { Type } from "./struct/Type"
 import { BlockBuilder } from "./structureExporter/building/BlockBuilder"
 import { Structure } from "./structureExporter/building/Structure"
 import { ModelProvider } from "./structureExporter/models/ModelProvider"
-import { ResourceProvider } from "./structureExporter/ResourceProvider"
+import { ResourcePackManager } from "./structureExporter/resources/ResourcePackManager"
+import { ResourceProvider } from "./structureExporter/resources/ResourceProvider"
 import { info } from "./structureExporter/support/log"
 import { Stopwatch } from "./structureExporter/support/Stopwatch"
 import { TextureAtlas } from "./structureExporter/textures/TextureAtlas"
@@ -20,13 +21,14 @@ const cli = new Cli("structureExporter")
             ["output", Type.string.as(Type.nullable)],
         ],
         options: {
-            cache: Type.string.as(Type.nullable),
+            resourcePath: Type.string.as(Type.nullable),
             simplify: Type.boolean.as(Type.nullable),
             dryRun: Type.boolean.as(Type.nullable),
             dumpAtlas: Type.boolean.as(Type.nullable),
         },
-        async callback(input, output, { cache, simplify, dryRun, dumpAtlas }) {
-            const resourceProvider = await ResourceProvider.createOrOpen(cache)
+        async callback(input, output, { resourcePath, simplify, dryRun, dumpAtlas }) {
+            const resourcePacks = await ResourcePackManager.createOrOpen(resourcePath)
+            const resourceProvider = new ResourceProvider(resourcePacks)
 
             if (output == null) {
                 output = join(dirname(input), basename(input, extname(input)) + ".glb")
@@ -72,16 +74,19 @@ const cli = new Cli("structureExporter")
         },
     })
     .addOption({
-        name: "import", desc: "Loads mod or minecraft assets into the cache folder",
+        name: "import", desc: "Loads mod or minecraft assets as a resource pack",
         params: [
             ["source", Type.string],
         ],
         options: {
-            cache: Type.string.as(Type.nullable),
+            resourcePath: Type.string.as(Type.nullable),
+            name: Type.string.as(Type.nullable),
         },
-        async callback(source, { cache }) {
-            const sources = await ResourceProvider.createOrOpen(cache)
-            await sources.importSource(source)
+        async callback(source, { resourcePath, name }) {
+            const resourcePacks = await ResourcePackManager.createOrOpen(resourcePath)
+            name ??= basename(source)
+            const pack = await resourcePacks.createOrOverwritePack(name)
+            await pack.importSource(source)
         },
     })
 
