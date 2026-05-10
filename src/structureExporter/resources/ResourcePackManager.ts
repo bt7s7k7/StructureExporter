@@ -15,6 +15,13 @@ export class ResourcePackManager {
         return null
     }
 
+    public async getOrCreatePack(name: string) {
+        const existing = this.packs.find(v => v.name == name)
+        if (existing) return existing
+
+        return await this.createOrOverwritePack(name)
+    }
+
     public async createOrOverwritePack(name: string) {
         const path = join(this.root, name)
 

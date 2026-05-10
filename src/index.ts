@@ -76,17 +76,21 @@ const cli = new Cli("structureExporter")
     .addOption({
         name: "import", desc: "Loads mod or minecraft assets as a resource pack",
         params: [
-            ["source", Type.string],
+            ["source", Type.string.as(Type.array)],
         ],
         options: {
             resourcePath: Type.string.as(Type.nullable),
             name: Type.string.as(Type.nullable),
+            merge: Type.boolean.as(Type.nullable),
         },
-        async callback(source, { resourcePath, name }) {
+        async callback(source, { resourcePath, name, merge }) {
             const resourcePacks = await ResourcePackManager.createOrOpen(resourcePath)
-            name ??= basename(source)
-            const pack = await resourcePacks.createOrOverwritePack(name)
-            await pack.importSource(source)
+            const method = merge ? "getOrCreatePack" : "createOrOverwritePack"
+            const globalPack = name != null ? await resourcePacks[method](name) : null
+            for (const path of source) {
+                const pack = globalPack ?? await resourcePacks[method](basename(path))
+                await pack.importSource(path)
+            }
         },
     })
 
