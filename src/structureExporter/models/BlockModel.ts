@@ -1,8 +1,8 @@
 import { vec4 } from "@gltf-transform/core"
+import { Vector3 } from "../support/Vector3"
+import { warn } from "../support/log"
+import { TextureResource } from "../textures/TextureResource"
 import { BlockModelElement } from "./BlockModelElement"
-import { TextureResource } from "./TextureResource"
-import { Vector3 } from "./Vector3"
-import { warn } from "./log"
 
 
 export class BlockModel {
@@ -15,7 +15,7 @@ export class BlockModel {
     )
 
     public withOptions(rotation: Vector3 | null, lockUv: boolean) {
-        return new BlockModel(this.name, this.elements, rotation, lockUv).copyTextureVariables(this)
+        return new BlockModel(this.name, this.elements, rotation, lockUv).copyTextureVariablesFrom(this)
     }
 
     public setTextureVariable(key: string, value: TextureResource | string) {
@@ -46,7 +46,7 @@ export class BlockModel {
         return resolvedTexture
     }
 
-    public copyTextureVariables(from: BlockModel) {
+    public copyTextureVariablesFrom(from: BlockModel) {
         for (const [key, value] of from._textureVariables) {
             this.setTextureVariable(key, value)
         }

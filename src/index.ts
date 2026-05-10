@@ -4,13 +4,13 @@ import { readFile, writeFile } from "node:fs/promises"
 import { basename, dirname, extname, join } from "node:path"
 import { Cli } from "./cli/Cli"
 import { Type } from "./struct/Type"
-import { TextureAtlas } from "./structureExporter/AtlasManager"
-import { BlockBuilder } from "./structureExporter/BlockBuilder"
-import { info } from "./structureExporter/log"
-import { ModelManager } from "./structureExporter/ModelManager"
-import { SourceManager } from "./structureExporter/SourceManager"
-import { Stopwatch } from "./structureExporter/Stopwatch"
-import { Structure } from "./structureExporter/Structure"
+import { BlockBuilder } from "./structureExporter/building/BlockBuilder"
+import { Structure } from "./structureExporter/building/Structure"
+import { ModelProvider } from "./structureExporter/models/ModelProvider"
+import { ResourceProvider } from "./structureExporter/ResourceProvider"
+import { info } from "./structureExporter/support/log"
+import { Stopwatch } from "./structureExporter/support/Stopwatch"
+import { TextureAtlas } from "./structureExporter/textures/TextureAtlas"
 
 const cli = new Cli("structureExporter")
     .addOption({
@@ -26,7 +26,7 @@ const cli = new Cli("structureExporter")
             dumpAtlas: Type.boolean.as(Type.nullable),
         },
         async callback(input, output, { cache, simplify, dryRun, dumpAtlas }) {
-            const sources = await SourceManager.createOrOpen(cache)
+            const resourceProvider = await ResourceProvider.createOrOpen(cache)
 
             if (output == null) {
                 output = join(dirname(input), basename(input, extname(input)) + ".glb")
@@ -40,18 +40,18 @@ const cli = new Cli("structureExporter")
             const document = new Document()
             const scene = document.createScene()
 
-            const modelManager = new ModelManager(sources)
+            const modelProvider = new ModelProvider(resourceProvider)
 
-            await modelManager.prepareAssets(structure.palette)
+            await modelProvider.prepareAssets(structure.palette)
 
-            const atlas = await TextureAtlas.build(document, modelManager)
+            const atlas = await TextureAtlas.build(document, modelProvider)
             if (dumpAtlas) {
                 await writeFile(join(dirname(output), "atlas.png"), atlas.content)
             }
 
             if (dryRun) return
 
-            const blockBuilder = new BlockBuilder(document, modelManager, atlas)
+            const blockBuilder = new BlockBuilder(document, modelProvider, atlas)
             blockBuilder.buildStructure(structure, scene)
 
             if (simplify) {
@@ -80,7 +80,7 @@ const cli = new Cli("structureExporter")
             cache: Type.string.as(Type.nullable),
         },
         async callback(source, { cache }) {
-            const sources = await SourceManager.createOrOpen(cache)
+            const sources = await ResourceProvider.createOrOpen(cache)
             await sources.importSource(source)
         },
     })

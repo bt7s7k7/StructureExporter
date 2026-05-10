@@ -1,17 +1,17 @@
+import { normaliseResourceId, ResourceProvider } from "../ResourceProvider"
+import { BlockState } from "../building/BlockState"
+import { BlockStateModelReference, Face } from "../minecraft/assets"
+import { FACE_DOWN, FACE_EAST, FACE_NORTH, FACE_SOUTH, FACE_UP, FACE_WEST } from "../support/FACES"
+import { Vector3 } from "../support/Vector3"
+import { warn } from "../support/log"
+import { TextureResource } from "../textures/TextureResource"
 import { BlockModel } from "./BlockModel"
 import { CubicElement, RotationModelElementDecorator } from "./BlockModelElement"
 import { BlockRenderingInfo } from "./BlockRenderingInfo"
-import { BlockState } from "./BlockState"
 import { BlockStatePredicate } from "./BlockStatePredicate"
-import { FACE_DOWN, FACE_EAST, FACE_NORTH, FACE_SOUTH, FACE_UP, FACE_WEST } from "./FACES"
 import { FaceInfo } from "./FaceInfo"
-import { normaliseResourceId, SourceManager } from "./SourceManager"
-import { TextureResource } from "./TextureResource"
-import { Vector3 } from "./Vector3"
-import { warn } from "./log"
-import { BlockStateModelReference, Face } from "./minecraft/assets"
 
-export class ModelManager {
+export class ModelProvider {
     protected readonly _blockRenderingInfo = new Map<string, BlockRenderingInfo>()
 
     public getBlockRenderingInfo(block: string) {
@@ -31,7 +31,7 @@ export class ModelManager {
             texture = data.texture.slice(1)
         } else {
             const id = normaliseResourceId(data.texture)
-            texture = await this.sources.loadTexture(id)
+            texture = await this.resourceProvider.loadTexture(id)
             if (texture == null) {
                 warn(`Sources do not include texture file ${id}`)
                 texture = TextureResource.getFallback()
@@ -43,7 +43,7 @@ export class ModelManager {
     }
 
     protected async _loadModel(id: string, model: BlockModel) {
-        const definition = await this.sources.loadModelDefinition(id)
+        const definition = await this.resourceProvider.loadModelDefinition(id)
         if (definition == null) {
             warn(`Sources do not include model file ${id}`)
             return false
@@ -60,7 +60,7 @@ export class ModelManager {
                     texture = value.slice(1)
                 } else {
                     const id = normaliseResourceId(value)
-                    texture = await this.sources.loadTexture(id)
+                    texture = await this.resourceProvider.loadTexture(id)
                     if (texture == null) {
                         warn(`Sources do not include texture file ${id}`)
                         texture = TextureResource.getFallback()
@@ -79,10 +79,10 @@ export class ModelManager {
                 const to = Vector3.fromArray(elementDefinition.to)
 
                 const origin = from.add(to).mul1(0.5 * (1 / 16)).sub1(0.5)
-                // Having scale with zero components, will cause the simplification process to
-                // calculate matrixes with NaN fields, causing a crash. This only happens when the
-                // process picks a node with NaN values as the first node in a material group, which
-                // is pretty random so the issue is hard to diagnose.
+                // Having scale with any components of value zero, will cause the glTF
+                // simplification process to calculate matrixes with NaN fields, causing a crash.
+                // This only happens when the process picks a node with NaN values as the first node
+                // in a material group, which is pretty random so the issue is hard to diagnose.
                 const scale = to.sub(from).mul1(1 / 16).withoutZeroes()
 
                 let element // Weird syntax for type inference
@@ -101,6 +101,7 @@ export class ModelManager {
                 if (elementDefinition.rotation) {
                     const rotationOrigin = Vector3.fromArray(elementDefinition.rotation.origin).mul1(1 / 16).sub1(0.5)
                     const originDelta = origin.sub(rotationOrigin)
+
                     let rotation
                     if ("axis" in elementDefinition.rotation) {
                         rotation = Vector3.ZERO.with(elementDefinition.rotation.axis, elementDefinition.rotation.angle * (Math.PI / 180))
@@ -136,16 +137,16 @@ export class ModelManager {
         for (const state of palette) {
             if (this._blockRenderingInfo.has(state.block)) continue
 
-            const definition = await this.sources.loadBlockStateDefinition(state.block)
+            const definition = await this.resourceProvider.loadBlockStateDefinition(state.block)
             if (definition == null) {
                 warn(`Sources do not include block state file ${state.block}`)
                 continue
             }
 
-            const multipart = definition.multipart != null
-            const info = new BlockRenderingInfo(multipart)
+            const isMultipart = definition.multipart != null
+            const info = new BlockRenderingInfo(isMultipart)
 
-            if (!multipart) {
+            if (!isMultipart) {
                 if (definition.variants == null) {
                     warn(`There are no variants or multipart defined in block state file for ${state.block}`)
                     continue
@@ -170,6 +171,7 @@ export class ModelManager {
             this._blockRenderingInfo.set(state.block, info)
         }
 
+        // Check what models are full blocks and opaque for face culling
         for (const info of this._blockRenderingInfo.values()) {
             forModels: for (const model of info.getModels()) {
                 do {
@@ -233,21 +235,21 @@ export class ModelManager {
 
         const modelId = normaliseResourceId(modelRef.model)
 
-        let variantModel = this._modelCache.get(modelId)
-        if (variantModel == null) {
-            variantModel = new BlockModel(modelId, [], null, false)
-            await this._loadModel(modelId, variantModel)
-            this._modelCache.set(modelId, variantModel)
+        let model = this._modelCache.get(modelId)
+        if (model == null) {
+            model = new BlockModel(modelId, [], null, false)
+            await this._loadModel(modelId, model)
+            this._modelCache.set(modelId, model)
         }
 
         if (!rotation.isZero || modelRef.uvlock) {
-            variantModel = variantModel.withOptions(rotation, !!modelRef.uvlock)
+            model = model.withOptions(rotation, !!modelRef.uvlock)
         }
 
-        return variantModel
+        return model
     }
 
     constructor(
-        public readonly sources: SourceManager,
+        public readonly resourceProvider: ResourceProvider,
     ) { }
 }

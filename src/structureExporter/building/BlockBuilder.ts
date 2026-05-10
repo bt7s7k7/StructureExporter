@@ -1,16 +1,16 @@
 import { Document, Mesh, Node, Scene } from "@gltf-transform/core"
 import { compactPrimitive } from "@gltf-transform/functions"
-import { unreachable } from "../comTypes/util"
-import { TextureAtlas } from "./AtlasManager"
-import { BlockModel } from "./BlockModel"
+import { unreachable } from "../../comTypes/util"
+import { BlockModel } from "../models/BlockModel"
+import { FaceInfo } from "../models/FaceInfo"
+import { ModelProvider } from "../models/ModelProvider"
+import { FACE_ALL, FACE_DOWN, FACE_EAST, FACE_NORTH, FACE_SOUTH, FACE_UP, FACE_WEST } from "../support/FACES"
+import { Vector3 } from "../support/Vector3"
+import { warn } from "../support/log"
+import { TextureAtlas } from "../textures/TextureAtlas"
+import { TextureResource } from "../textures/TextureResource"
 import { BlockState } from "./BlockState"
-import { FaceInfo } from "./FaceInfo"
-import { FACE_ALL, FACE_DOWN, FACE_EAST, FACE_NORTH, FACE_SOUTH, FACE_UP, FACE_WEST } from "./FACES"
-import { warn } from "./log"
-import { ModelManager } from "./ModelManager"
 import { Structure } from "./Structure"
-import { TextureResource } from "./TextureResource"
-import { Vector3 } from "./Vector3"
 
 const _NEIGHBOURS = [
     [FACE_EAST, new Vector3(1, 0, 0)],
@@ -34,6 +34,160 @@ const _FACE_DATA = [
     [FACE_DOWN, [-0.5, -0.5, -0.5, 0.5, -0.5, -0.5, -0.5, -0.5, 0.5, 0.5, -0.5, 0.5]],
 ] as const
 
+function _getUVs(texture: TextureResource, face: FaceInfo, direction: number, rotation: Vector3 | null, atlas: TextureAtlas) {
+    let [x1, y1, x2, y2] = face.uv
+
+    let uv
+    switch (face.rotation) {
+        case 0:
+            uv = [
+                x1, y2,
+                x2, y2,
+                x1, y1,
+                x2, y1,
+            ]
+            break
+        case 90:
+            uv = [
+                x2, y2,
+                x2, y1,
+                x1, y2,
+                x1, y1,
+            ]
+            break
+        case 180:
+            uv = [
+                x2, y1,
+                x1, y1,
+                x2, y2,
+                x1, y2,
+            ]
+            break
+        case 270:
+            uv = [
+                x1, y1,
+                x1, y2,
+                x2, y1,
+                x2, y2,
+            ]
+            break
+    }
+
+    // Rotation code inspired by BramStoutProductions/MiEx
+    // Source: https://github.com/BramStoutProductions/MiEx/blob/main/src/nl/bramstout/mcworldexporter/model/ModelFace.java
+    // Method: ModelFace.rotate
+    if (rotation != null) {
+        if (direction == FACE_WEST || direction == FACE_EAST) {
+            let angle = rotation.x
+            if (direction == FACE_EAST) angle = 360 - angle
+            switch (angle) {
+                case 90: {
+                    let cx = texture.width * 0.5
+                    let cy = texture.height * 0.5
+
+                    for (let i = 0; i < uv.length; i += 2) {
+                        let x = (uv[i + 1] - cy) + cx
+                        let y = -(uv[i] - cx) + cy
+                        uv[i] = x
+                        uv[i + 1] = y
+                    }
+                    break
+                }
+                case 180:
+                    for (let i = 0; i < uv.length; i += 2) {
+                        uv[i] = texture.width - uv[i]
+                        uv[i + 1] = texture.height - uv[i + 1]
+                    }
+                    break
+                case 270: {
+                    let cx = texture.width * 0.5
+                    let cy = texture.height * 0.5
+
+                    for (let i = 0; i < uv.length; i += 2) {
+                        let x = -(uv[i + 1] - cy) + cx
+                        let y = (uv[i] - cx) + cy
+                        uv[i] = x
+                        uv[i + 1] = y
+                    }
+                    break
+                }
+            }
+        }
+
+        {
+            let angle = rotation.x
+            while (angle >= 90) {
+                angle -= 90
+
+                if (direction == FACE_DOWN) {
+                    direction = FACE_SOUTH
+                } else if (direction == FACE_SOUTH) {
+                    direction = FACE_UP
+                } else if (direction == FACE_UP) {
+                    direction = FACE_NORTH
+
+                    for (let i = 0; i < uv.length; i += 2) {
+                        uv[i] = texture.width - uv[i]
+                        uv[i + 1] = texture.height - uv[i + 1]
+                    }
+                } else if (direction == FACE_NORTH) {
+                    direction = FACE_DOWN
+
+                    for (let i = 0; i < uv.length; i += 2) {
+                        uv[i] = texture.width - uv[i]
+                        uv[i + 1] = texture.height - uv[i + 1]
+                    }
+                }
+            }
+        }
+
+        if (direction == FACE_DOWN || direction == FACE_UP) {
+            let angle = rotation.y
+            if (direction == FACE_UP) angle = 360 - angle
+            switch (angle) {
+                case 90: {
+                    let cx = texture.width * 0.5
+                    let cy = texture.height * 0.5
+
+                    for (let i = 0; i < uv.length; i += 2) {
+                        let x = (uv[i + 1] - cy) + cx
+                        let y = -(uv[i] - cx) + cy
+                        uv[i] = x
+                        uv[i + 1] = y
+                    }
+                    break
+                }
+                case 180:
+                    for (let i = 0; i < uv.length; i += 2) {
+                        uv[i] = texture.width - uv[i]
+                        uv[i + 1] = texture.height - uv[i + 1]
+                    }
+                    break
+                case 270: {
+                    let cx = texture.width * 0.5
+                    let cy = texture.height * 0.5
+
+                    for (let i = 0; i < uv.length; i += 2) {
+                        let x = -(uv[i + 1] - cy) + cx
+                        let y = (uv[i] - cx) + cy
+                        uv[i] = x
+                        uv[i + 1] = y
+                    }
+                    break
+                }
+            }
+        }
+    }
+
+    // The UVs are in pixel coordinates local to the texture, convert them to global 0..1 UVs
+    for (let i = 0; i < uv.length; i += 2) {
+        uv[i] = (uv[i] + texture.x) / atlas.width
+        uv[i + 1] = (uv[i + 1] + texture.y) / atlas.height
+    }
+
+    return uv
+}
+
 export class BlockBuilder {
     protected _meshCache = new Map<string, Mesh>()
     protected _buffer = this.document.createBuffer()
@@ -45,13 +199,13 @@ export class BlockBuilder {
             const node = this.document.createNode(`(${pos.toMapKey()})${state.toString()}`)
                 .setTranslation(pos.toArray())
 
-            this.buildBlockState(pos, state, node, structure)
+            this._buildBlockState(pos, state, node, structure)
 
             root.addChild(node)
         }
     }
 
-    public getBlockMesh(model: BlockModel, elementIdx: number, faceMask: number, faces: (FaceInfo | null)[]) {
+    public buildElementMesh(model: BlockModel, elementIdx: number, faceMask: number, faces: (FaceInfo | null)[]) {
         let key = `${model.name}_${elementIdx}_${faceMask}`
         let rotation: Vector3 | null = null
         if (model.lockUv && model.rotation) {
@@ -89,7 +243,7 @@ export class BlockBuilder {
                 if (texture.transparency == "transparent") transparency = "transparent"
             }
 
-            uvValues.push(...this.atlas.getUVs(texture, faceInfo, face, rotation))
+            uvValues.push(..._getUVs(texture, faceInfo, face, rotation, this.atlas))
         }
 
         const vertices = this.document.createAccessor()
@@ -106,7 +260,7 @@ export class BlockBuilder {
             .setArray(new Uint16Array(indexValues))
             .setBuffer(this._buffer)
 
-        const prim = this.document.createPrimitive()
+        const primitive = this.document.createPrimitive()
             .setAttribute("POSITION", vertices)
             .setAttribute("TEXCOORD_0", uvs)
             .setIndices(indices)
@@ -118,10 +272,10 @@ export class BlockBuilder {
                 this.atlas.getTransparentMaterial()
             ) : unreachable())
 
-        compactPrimitive(prim)
+        compactPrimitive(primitive)
 
         const mesh = this.document.createMesh(key)
-            .addPrimitive(prim)
+            .addPrimitive(primitive)
 
         this._meshCache.set(key, mesh)
         return mesh
@@ -193,8 +347,8 @@ export class BlockBuilder {
         }
     }
 
-    public buildBlockState(pos: Vector3, state: BlockState, node: Node, context: Structure) {
-        const info = this.models.getBlockRenderingInfo(state.block)
+    protected _buildBlockState(pos: Vector3, state: BlockState, node: Node, context: Structure) {
+        const info = this.modelProvider.getBlockRenderingInfo(state.block)
         if (info == null) {
             // We already warned about this in ModelManager.prepareAssets
             return
@@ -212,7 +366,7 @@ export class BlockBuilder {
                 if (neighbour == null) continue
 
                 const neighbourBlock = context.palette[neighbour.state].block
-                const neighbourInfo = this.models.getBlockRenderingInfo(neighbourBlock)
+                const neighbourInfo = this.modelProvider.getBlockRenderingInfo(neighbourBlock)
                 if (neighbourInfo == null) continue
 
                 if (!neighbourInfo.isFullBlock) continue
@@ -229,7 +383,7 @@ export class BlockBuilder {
             }
         }
 
-        if (info.multipart) {
+        if (info.isMultipart) {
             let j = 0
 
             for (const model of info.findModels(state)) {
@@ -252,7 +406,7 @@ export class BlockBuilder {
 
     constructor(
         public readonly document: Document,
-        public readonly models: ModelManager,
+        public readonly modelProvider: ModelProvider,
         public readonly atlas: TextureAtlas,
     ) { }
 }

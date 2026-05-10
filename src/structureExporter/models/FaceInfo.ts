@@ -1,12 +1,12 @@
-import { Face } from "./minecraft/assets"
-import { TextureResource } from "./TextureResource"
+import { FaceRotationAngle } from "../minecraft/assets"
+import { TextureResource } from "../textures/TextureResource"
 
 
 export class FaceInfo {
     constructor(
         public readonly texture: TextureResource | string,
         public readonly uv: readonly [number, number, number, number],
-        public readonly rotation: NonNullable<Face["rotation"]>,
+        public readonly rotation: FaceRotationAngle,
     ) { }
 
     protected static _fallback: FaceInfo | null = null

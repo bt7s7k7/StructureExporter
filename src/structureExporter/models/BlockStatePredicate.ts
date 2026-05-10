@@ -1,6 +1,6 @@
-import { unreachable } from "../comTypes/util"
-import { BlockState } from "./BlockState"
-import { BlockStatePartCondition } from "./minecraft/assets"
+import { unreachable } from "../../comTypes/util"
+import { BlockState } from "../building/BlockState"
+import { BlockStatePartCondition } from "../minecraft/assets"
 
 
 export abstract class BlockStatePredicate {

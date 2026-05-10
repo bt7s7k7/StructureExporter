@@ -37,9 +37,11 @@ export interface ModelElement {
     | { origin: [number, number, number], x: number, y: number, z: number }
 }
 
+export type FaceRotationAngle = 0 | 90 | 180 | 270
+
 export interface Face {
     uv?: [number, number, number, number]
     texture: string
     cullface?: "down" | "up" | "north" | "south" | "west" | "east"
-    rotation?: 0 | 90 | 180 | 270
+    rotation?: FaceRotationAngle
 }

@@ -4,17 +4,17 @@ import { resolve } from "node:path"
 import { dirname, join } from "path/posix"
 import sharp from "sharp"
 import { asyncConcurrency } from "../comTypes/util"
-import { print } from "./log"
 import { BlockStateDefinition, ModelDefinition } from "./minecraft/assets"
-import { Stopwatch } from "./Stopwatch"
-import { TextureResource } from "./TextureResource"
+import { Stopwatch } from "./support/Stopwatch"
+import { print } from "./support/log"
+import { TextureResource } from "./textures/TextureResource"
 
 export function normaliseResourceId(id: string) {
     if (!id.includes(":")) return "minecraft:" + id
     return id
 }
 
-export class SourceManager {
+export class ResourceProvider {
     public async importSource(path: string) {
         const zip = new StreamZip.async({ file: path })
 
@@ -142,6 +142,6 @@ export class SourceManager {
     public static async createOrOpen(path: string | null | undefined) {
         path ??= resolve("cache")
         await mkdir(path, { recursive: true })
-        return new SourceManager(path)
+        return new ResourceProvider(path)
     }
 }

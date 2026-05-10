@@ -1,7 +1,7 @@
 import { Document, Node, vec3, vec4 } from "@gltf-transform/core"
-import { BlockBuilder } from "./BlockBuilder"
+import { BlockBuilder } from "../building/BlockBuilder"
+import { FACES } from "../support/FACES"
 import { BlockModel } from "./BlockModel"
-import { FACES } from "./FACES"
 import { FaceInfo } from "./FaceInfo"
 
 
@@ -27,7 +27,7 @@ export class CubicElement extends BlockModelElement {
 
     public override apply(node: Node, model: BlockModel, faceMask: number, document: Document, builder: BlockBuilder): void {
         node
-            .setMesh(builder.getBlockMesh(model, this.idx, this._faceMask & faceMask, this._faceInfo))
+            .setMesh(builder.buildElementMesh(model, this.idx, this._faceMask & faceMask, this._faceInfo))
             .setTranslation(this.translation)
             .setScale(this.scale)
     }
