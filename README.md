@@ -14,5 +14,6 @@ Generates glTF models from Minecraft structure files. Compared with other compet
 
   - **Block entity support:** No geometry created by block entity renderers is included (e.g. chest, beds, banners…)
   - **Face culling:** Without actual block information, face culling uses simple heuristics limited to full blocks
+  - **Animated textures:** Animated textures are not supported, only the first frame is shown
 
 
