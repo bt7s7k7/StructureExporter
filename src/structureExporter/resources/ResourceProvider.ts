@@ -1,6 +1,6 @@
 import { join } from "node:path"
 import sharp from "sharp"
-import { BlockStateDefinition, ModelDefinition } from "../minecraft/assets"
+import { BlockStateDefinition, ModelDefinition, TextureAnimationDefinition } from "../minecraft/assets"
 import { Stopwatch } from "../support/Stopwatch"
 import { TextureResource } from "../textures/TextureResource"
 import { ResourcePackManager } from "./ResourcePackManager"
@@ -51,14 +51,31 @@ export class ResourceProvider {
         if (this._textureCache.has(id)) return this._textureCache.get(id)
 
         const [namespace, path] = id.split(":")
-        const content = await this.resourcePacks.loadResource(join("assets", namespace, "textures", path + ".png"))
+        const fullPath = join("assets", namespace, "textures", path + ".png")
+        const content = await this.resourcePacks.loadResource(fullPath)
         if (content == null) {
             this._textureCache.set(id, null)
             return null
         }
 
-        const image = sharp(content)
-        const metadata = await image.metadata()
+        let image = sharp(content)
+        let { width, height } = await image.metadata()
+
+        // Check for animated textures to only cut out the first frame
+        const metadataFile = await this.resourcePacks.loadResource(fullPath + ".mcmeta")
+        if (metadataFile != null) {
+            const metadata: TextureAnimationDefinition = JSON.parse(metadataFile.toString("utf-8"));
+
+            [width, height] = [
+                metadata.animation.width ?? (metadata.animation.height != null ? width : Math.min(width, height)),
+                metadata.animation.height ?? (metadata.animation.width != null ? height : Math.min(width, height)),
+            ]
+
+            image = image.extract({
+                top: 0, left: 0,
+                width, height,
+            })
+        }
 
         let transparency: TextureResource["transparency"] = "opaque"
         const stopwatch = new Stopwatch()
@@ -83,7 +100,7 @@ export class ResourceProvider {
 
         stopwatch.end()
 
-        const definition = new TextureResource(metadata.width, metadata.height, transparency, image)
+        const definition = new TextureResource(width, height, transparency, image)
         this._textureCache.set(id, definition)
         return definition
     }

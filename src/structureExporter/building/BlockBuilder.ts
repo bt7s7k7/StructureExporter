@@ -37,6 +37,13 @@ const _FACE_DATA = [
 function _getUVs(texture: TextureResource, face: FaceInfo, direction: number, rotation: Vector3 | null, atlas: TextureAtlas) {
     let [x1, y1, x2, y2] = face.uv
 
+    // Transform the texture coordinates into 0..1 range for easier manipulation. All texture
+    // coordinates assume the associated texture is 16x16, so divide the coordinates by 16.
+    x1 *= 0.0625
+    y1 *= 0.0625
+    x2 *= 0.0625
+    y2 *= 0.0625
+
     let uv
     switch (face.rotation) {
         case 0:
@@ -82,12 +89,9 @@ function _getUVs(texture: TextureResource, face: FaceInfo, direction: number, ro
             if (direction == FACE_EAST) angle = 360 - angle
             switch (angle) {
                 case 90: {
-                    let cx = texture.width * 0.5
-                    let cy = texture.height * 0.5
-
                     for (let i = 0; i < uv.length; i += 2) {
-                        let x = (uv[i + 1] - cy) + cx
-                        let y = -(uv[i] - cx) + cy
+                        let x = uv[i + 1]
+                        let y = -(uv[i] - 0.5) + 0.5
                         uv[i] = x
                         uv[i + 1] = y
                     }
@@ -95,17 +99,14 @@ function _getUVs(texture: TextureResource, face: FaceInfo, direction: number, ro
                 }
                 case 180:
                     for (let i = 0; i < uv.length; i += 2) {
-                        uv[i] = texture.width - uv[i]
-                        uv[i + 1] = texture.height - uv[i + 1]
+                        uv[i] = 1 - uv[i]
+                        uv[i + 1] = 1 - uv[i + 1]
                     }
                     break
                 case 270: {
-                    let cx = texture.width * 0.5
-                    let cy = texture.height * 0.5
-
                     for (let i = 0; i < uv.length; i += 2) {
-                        let x = -(uv[i + 1] - cy) + cx
-                        let y = (uv[i] - cx) + cy
+                        let x = -(uv[i + 1] - 0.5) + 0.5
+                        let y = uv[i]
                         uv[i] = x
                         uv[i + 1] = y
                     }
@@ -127,15 +128,15 @@ function _getUVs(texture: TextureResource, face: FaceInfo, direction: number, ro
                     direction = FACE_NORTH
 
                     for (let i = 0; i < uv.length; i += 2) {
-                        uv[i] = texture.width - uv[i]
-                        uv[i + 1] = texture.height - uv[i + 1]
+                        uv[i] = 1 - uv[i]
+                        uv[i + 1] = 1 - uv[i + 1]
                     }
                 } else if (direction == FACE_NORTH) {
                     direction = FACE_DOWN
 
                     for (let i = 0; i < uv.length; i += 2) {
-                        uv[i] = texture.width - uv[i]
-                        uv[i + 1] = texture.height - uv[i + 1]
+                        uv[i] = 1 - uv[i]
+                        uv[i + 1] = 1 - uv[i + 1]
                     }
                 }
             }
@@ -146,12 +147,9 @@ function _getUVs(texture: TextureResource, face: FaceInfo, direction: number, ro
             if (direction == FACE_UP) angle = 360 - angle
             switch (angle) {
                 case 90: {
-                    let cx = texture.width * 0.5
-                    let cy = texture.height * 0.5
-
                     for (let i = 0; i < uv.length; i += 2) {
-                        let x = (uv[i + 1] - cy) + cx
-                        let y = -(uv[i] - cx) + cy
+                        let x = uv[i + 1]
+                        let y = -(uv[i] - 0.5) + 0.5
                         uv[i] = x
                         uv[i + 1] = y
                     }
@@ -159,17 +157,14 @@ function _getUVs(texture: TextureResource, face: FaceInfo, direction: number, ro
                 }
                 case 180:
                     for (let i = 0; i < uv.length; i += 2) {
-                        uv[i] = texture.width - uv[i]
-                        uv[i + 1] = texture.height - uv[i + 1]
+                        uv[i] = 1 - uv[i]
+                        uv[i + 1] = 1 - uv[i + 1]
                     }
                     break
                 case 270: {
-                    let cx = texture.width * 0.5
-                    let cy = texture.height * 0.5
-
                     for (let i = 0; i < uv.length; i += 2) {
-                        let x = -(uv[i + 1] - cy) + cx
-                        let y = (uv[i] - cx) + cy
+                        let x = -(uv[i + 1] - 0.5) + 0.5
+                        let y = uv[i]
                         uv[i] = x
                         uv[i + 1] = y
                     }
@@ -179,10 +174,12 @@ function _getUVs(texture: TextureResource, face: FaceInfo, direction: number, ro
         }
     }
 
-    // The UVs are in pixel coordinates local to the texture, convert them to global 0..1 UVs
+    // The UVs are in local coordinates to the texture, convert them to global coordinates. First
+    // remap the UVs to pixel coordinates then translate them according to the textures position in
+    // the atlas. Finally transform them back to UVs with the atlas size.
     for (let i = 0; i < uv.length; i += 2) {
-        uv[i] = (uv[i] + texture.x) / atlas.width
-        uv[i + 1] = (uv[i + 1] + texture.y) / atlas.height
+        uv[i] = (uv[i] * texture.width + texture.x) / atlas.width
+        uv[i + 1] = (uv[i + 1] * texture.height + texture.y) / atlas.height
     }
 
     return uv

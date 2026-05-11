@@ -45,3 +45,10 @@ export interface Face {
     cullface?: "down" | "up" | "north" | "south" | "west" | "east"
     rotation?: FaceRotationAngle
 }
+
+export interface TextureAnimationDefinition {
+    animation: {
+        width?: number
+        height?: number
+    }
+}
