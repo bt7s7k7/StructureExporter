@@ -12,7 +12,10 @@ export class ResourcePack {
         const queue = asyncConcurrency<any>(100)
 
         for (const entry of Object.values(await zip.entries())) {
-            if (!entry.isDirectory && entry.name.match(/^assets\/\w+\/(textures\/block|blockstates|models\/block)\//)) {
+            // Only get files from relevant directories, that is blockstates and block models and
+            // textures. The "custom" directory is included for compatibility with
+            // DecorativeBlocks-Reborn, which breaks the folder structure standard.
+            if (!entry.isDirectory && entry.name.match(/^assets\/\w+\/(textures\/(?:block|custom)|blockstates|models\/(?:block|custom))\//)) {
                 const targetPath = join(this.path, entry.name)
                 const targetDirname = dirname(targetPath)
 
