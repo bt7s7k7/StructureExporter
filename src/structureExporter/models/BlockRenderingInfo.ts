@@ -36,6 +36,6 @@ export class BlockRenderingInfo {
     }
 
     constructor(
-        public readonly isMultipart: boolean,
+        public isMultipart: boolean,
     ) { }
 }

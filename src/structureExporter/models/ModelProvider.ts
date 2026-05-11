@@ -1,3 +1,4 @@
+import { asyncConcurrency } from "../../comTypes/util"
 import { BlockState } from "../building/BlockState"
 import { BlockStateModelReference, Face } from "../minecraft/assets"
 import { normaliseResourceId, ResourceProvider } from "../resources/ResourceProvider"
@@ -146,46 +147,50 @@ export class ModelProvider {
         using stopwatch = new Stopwatch()
         stopwatch.start("prepareAssets/load")
 
+        const queue = asyncConcurrency<any>(5)
+
         for (const state of palette) {
             if (this._blockRenderingInfo.has(state.block)) continue
+            const info = new BlockRenderingInfo(false)
+            this._blockRenderingInfo.set(state.block, info)
 
-            const definition = await this.resourceProvider.loadBlockStateDefinition(state.block)
-            if (definition == null) {
-                warn(`Sources do not include block state file ${state.block}`)
-                const info = new BlockRenderingInfo(false)
-                const model = await this._resolveModelReference(state.block, null)
-                info.registerModel(BlockStatePredicate.fromString(""), new BlockModel(state.block, [CubicElement.getFallback()], null, false))
-                this._blockRenderingInfo.set(state.block, info)
-                continue
-            }
-
-            const isMultipart = definition.multipart != null
-            const info = new BlockRenderingInfo(isMultipart)
-
-            if (!isMultipart) {
-                if (definition.variants == null) {
-                    warn(`There are no variants or multipart defined in block state file for ${state.block}`)
-                    continue
+            queue.push(async () => {
+                const definition = await this.resourceProvider.loadBlockStateDefinition(state.block)
+                if (definition == null) {
+                    warn(`Sources do not include block state file ${state.block}`)
+                    const model = await this._resolveModelReference(state.block, null)
+                    info.registerModel(BlockStatePredicate.fromString(""), model)
+                    return
                 }
 
-                for (const [key, variant] of Object.entries(definition.variants)) {
-                    info.registerModel(BlockStatePredicate.fromString(key), await this._resolveModelReference(state.block, variant))
-                }
-            } else {
-                for (const part of definition.multipart!) {
-                    const partState = new BlockState(state.block)
-                    if (part.when) {
-                        for (const [key, value] of Object.entries(part.when)) {
-                            partState.setProperty(key, value)
-                        }
+                const isMultipart = definition.multipart != null
+                info.isMultipart = isMultipart
+
+                if (!isMultipart) {
+                    if (definition.variants == null) {
+                        warn(`There are no variants or multipart defined in block state file for ${state.block}`)
+                        return
                     }
 
-                    info.registerModel(BlockStatePredicate.fromCondition(part.when), await this._resolveModelReference(state.block, part.apply))
-                }
-            }
+                    for (const [key, variant] of Object.entries(definition.variants)) {
+                        info.registerModel(BlockStatePredicate.fromString(key), await this._resolveModelReference(state.block, variant))
+                    }
+                } else {
+                    for (const part of definition.multipart!) {
+                        const partState = new BlockState(state.block)
+                        if (part.when) {
+                            for (const [key, value] of Object.entries(part.when)) {
+                                partState.setProperty(key, value)
+                            }
+                        }
 
-            this._blockRenderingInfo.set(state.block, info)
+                        info.registerModel(BlockStatePredicate.fromCondition(part.when), await this._resolveModelReference(state.block, part.apply))
+                    }
+                }
+            })
         }
+
+        await queue.join()
 
         stopwatch.start("prepareAssets/culling")
         // Check what models are full blocks and opaque for face culling

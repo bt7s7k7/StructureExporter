@@ -11,50 +11,33 @@ export function normaliseResourceId(id: string) {
 }
 
 export class ResourceProvider {
-    protected readonly _blockStateCache = new Map<string, BlockStateDefinition | null>()
-
     public async loadBlockStateDefinition(id: string) {
-        if (this._blockStateCache.has(id)) return this._blockStateCache.get(id)
-
         const [namespace, path] = id.split(":")
         const content = await this.resourcePacks.loadResource(join("assets", namespace, "blockstates", path + ".json"))
         if (content == null) {
-            this._blockStateCache.set(id, null)
             return null
         }
 
         const definition = JSON.parse(content.toString("utf-8")) as BlockStateDefinition
-        this._blockStateCache.set(id, definition)
         return definition
     }
 
-    protected readonly _modelCache = new Map<string, ModelDefinition | null>()
-
     public async loadModelDefinition(id: string) {
-        if (this._modelCache.has(id)) return this._modelCache.get(id)
-
         const [namespace, path] = id.split(":")
         const content = await this.resourcePacks.loadResource(join("assets", namespace, "models", path + ".json"))
         if (content == null) {
-            this._modelCache.set(id, null)
             return null
         }
 
         const definition = JSON.parse(content.toString("utf-8")) as ModelDefinition
-        this._modelCache.set(id, definition)
         return definition
     }
 
-    protected readonly _textureCache = new Map<string, TextureResource | null>()
-
     public async loadTexture(id: string) {
-        if (this._textureCache.has(id)) return this._textureCache.get(id)
-
         const [namespace, path] = id.split(":")
         const fullPath = join("assets", namespace, "textures", path + ".png")
         const content = await this.resourcePacks.loadResource(fullPath)
         if (content == null) {
-            this._textureCache.set(id, null)
             return null
         }
 
@@ -101,11 +84,26 @@ export class ResourceProvider {
         stopwatch.end()
 
         const definition = new TextureResource(width, height, transparency, image)
-        this._textureCache.set(id, definition)
         return definition
     }
 
     constructor(
         public readonly resourcePacks: ResourcePackManager,
-    ) { }
+    ) {
+        for (const key of [
+            "loadBlockStateDefinition",
+            "loadModelDefinition",
+            "loadTexture",
+        ] as const) {
+            const method = this[key].bind(this)
+            const cache = new Map<string, Promise<any>>()
+
+            this[key] = function (id) {
+                if (cache.has(id)) return cache.get(id)!
+                const promise = method(id)
+                cache.set(id, promise)
+                return promise
+            }
+        }
+    }
 }

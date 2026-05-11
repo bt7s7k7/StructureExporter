@@ -3,6 +3,7 @@ import { mkdir, readFile } from "node:fs/promises"
 import { dirname, join, relative } from "node:path"
 import { asyncConcurrency } from "../../comTypes/util"
 import { print } from "../support/log"
+import { Stopwatch } from "../support/Stopwatch"
 
 export class ResourcePack {
     public async importSource(path: string) {
@@ -34,6 +35,7 @@ export class ResourcePack {
     }
 
     public async loadResource(path: string) {
+        using stopwatch = new Stopwatch().start("loadResource")
         const fullPath = join(this.path, path)
         try {
             return await readFile(fullPath)
