@@ -56,6 +56,7 @@ const cli = new Cli("structureExporter")
             const blockBuilder = new BlockBuilder(document, modelProvider, atlas)
             blockBuilder.buildStructure(structure, scene)
 
+            const stopwatch = new Stopwatch().start("simplify")
             if (simplify) {
                 await document.transform(
                     dedup({ propertyTypes: [PropertyType.ACCESSOR] }),
@@ -67,6 +68,7 @@ const cli = new Cli("structureExporter")
                     dedup({ propertyTypes: [PropertyType.ACCESSOR] }),
                 )
             }
+            stopwatch.end()
 
             await writeFile(output, await new NodeIO().writeBinary(document))
 

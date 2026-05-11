@@ -3,6 +3,7 @@ import { unreachable } from "../../comTypes/util"
 import { NbtBlock, NbtCreateBlock, NbtStructure } from "../minecraft/structure"
 import { Vector3 } from "../support/Vector3"
 import { BlockState } from "./BlockState"
+import { Stopwatch } from "../support/Stopwatch"
 
 // Reversed engineered from Minecraft, see BlockPos
 function _smallestEncompassingPowerOfTwo(value: number) {
@@ -132,6 +133,7 @@ export class Structure {
     }
 
     public static async load(buffer: Buffer) {
+        using _ = new Stopwatch().start("Structure.load")
         const { parsed } = await parse(buffer)
         const data = simplify(parsed) as NbtStructure
 

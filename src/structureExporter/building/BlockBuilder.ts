@@ -5,6 +5,7 @@ import { BlockModel } from "../models/BlockModel"
 import { FaceInfo } from "../models/FaceInfo"
 import { ModelProvider } from "../models/ModelProvider"
 import { FACE_ALL, FACE_DOWN, FACE_EAST, FACE_NORTH, FACE_SOUTH, FACE_UP, FACE_WEST } from "../support/FACES"
+import { Stopwatch } from "../support/Stopwatch"
 import { Vector3 } from "../support/Vector3"
 import { warn } from "../support/log"
 import { TextureAtlas } from "../textures/TextureAtlas"
@@ -190,6 +191,7 @@ export class BlockBuilder {
     protected _buffer = this.document.createBuffer()
 
     public buildStructure(structure: Structure, root: Node | Scene) {
+        const stopwatch = new Stopwatch().start("buildStructure")
         for (const block of structure.blocks) {
             const pos = Vector3.fromArray(block.pos)
             const state = structure.palette[block.state]
@@ -200,6 +202,7 @@ export class BlockBuilder {
 
             root.addChild(node)
         }
+        stopwatch.end()
 
         let idx = 0
         for (const substructure of structure.substructures) {
@@ -212,6 +215,7 @@ export class BlockBuilder {
     }
 
     public buildElementMesh(model: BlockModel, elementIdx: number, faceMask: number, faces: (FaceInfo | null)[]) {
+        using stopwatch = new Stopwatch().start("buildElementMesh")
         let key = `${model.name}_${elementIdx}_${faceMask}`
         let rotation: Vector3 | null = null
         if (model.lockUv && model.rotation) {

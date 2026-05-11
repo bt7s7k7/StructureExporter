@@ -15,6 +15,11 @@ export class Stopwatch {
         const end = performance.now()
         if (this._name == null) return
         Stopwatch._times.set(this._name, (Stopwatch._times.get(this._name) ?? 0) + (end - this._start))
+        this._name = null
+    }
+
+    public [Symbol.dispose]() {
+        this.end()
     }
 
     protected static readonly _times = new Map<string, number>()

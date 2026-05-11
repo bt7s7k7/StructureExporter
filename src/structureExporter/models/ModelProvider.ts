@@ -2,6 +2,7 @@ import { BlockState } from "../building/BlockState"
 import { BlockStateModelReference, Face } from "../minecraft/assets"
 import { normaliseResourceId, ResourceProvider } from "../resources/ResourceProvider"
 import { FACE_DOWN, FACE_EAST, FACE_NORTH, FACE_SOUTH, FACE_UP, FACE_WEST } from "../support/FACES"
+import { Stopwatch } from "../support/Stopwatch"
 import { Vector3 } from "../support/Vector3"
 import { warn } from "../support/log"
 import { TextureResource } from "../textures/TextureResource"
@@ -142,6 +143,9 @@ export class ModelProvider {
     }
 
     public async prepareAssets(palette: Iterable<BlockState>) {
+        using stopwatch = new Stopwatch()
+        stopwatch.start("prepareAssets/load")
+
         for (const state of palette) {
             if (this._blockRenderingInfo.has(state.block)) continue
 
@@ -183,6 +187,7 @@ export class ModelProvider {
             this._blockRenderingInfo.set(state.block, info)
         }
 
+        stopwatch.start("prepareAssets/culling")
         // Check what models are full blocks and opaque for face culling
         for (const info of this._blockRenderingInfo.values()) {
             forModels: for (const model of info.getModels()) {
