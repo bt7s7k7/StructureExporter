@@ -200,6 +200,15 @@ export class BlockBuilder {
 
             root.addChild(node)
         }
+
+        let idx = 0
+        for (const substructure of structure.substructures) {
+            const node = this.document.createNode(`substructure_${idx++}`)
+                .setTranslation(substructure.position.toArray())
+                .setRotation(substructure.rotation.eulerToQuaternionZYX())
+            root.addChild(node)
+            this.buildStructure(substructure, node)
+        }
     }
 
     public buildElementMesh(model: BlockModel, elementIdx: number, faceMask: number, faces: (FaceInfo | null)[]) {

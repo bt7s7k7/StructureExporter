@@ -44,7 +44,7 @@ const cli = new Cli("structureExporter")
 
             const modelProvider = new ModelProvider(resourceProvider)
 
-            await modelProvider.prepareAssets(structure.palette)
+            await modelProvider.prepareAssets(structure.getAssets())
 
             const atlas = await TextureAtlas.build(document, modelProvider)
             if (dumpAtlas) {

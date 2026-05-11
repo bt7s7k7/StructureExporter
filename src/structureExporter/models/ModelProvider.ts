@@ -133,7 +133,7 @@ export class ModelProvider {
         }
     }
 
-    public async prepareAssets(palette: BlockState[]) {
+    public async prepareAssets(palette: Iterable<BlockState>) {
         for (const state of palette) {
             if (this._blockRenderingInfo.has(state.block)) continue
 

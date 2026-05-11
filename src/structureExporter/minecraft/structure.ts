@@ -1,8 +1,9 @@
 export interface NbtStructure {
     size: [number, number, number]
-    blocks: NbtBlock[]
+    blocks: NbtBlock[] | NbtCreateBlock[]
     palette: NbtPaletteEntry[]
-    entities: NbtEntity[]
+    entities?: NbtEntity[]
+    sub_levels?: (NbtStructure & { position: { x: number, y: number, z: number }, orientation: { x: number, y: number, z: number } })[]
     DataVersion: number
 }
 
@@ -13,6 +14,12 @@ export interface NbtBlock {
         id: string
         [index: string]: any
     }
+}
+
+export interface NbtCreateBlock {
+    Pos: [number, number]
+    State: number
+    Nbt?: NbtBlock["nbt"]
 }
 
 export interface NbtPaletteEntry {

@@ -153,6 +153,11 @@ export class Vector3 {
         return new Vector3(source[start + 0], source[start + 1], source[start + 2])
     }
 
+    public static fromObject(source: { x: number, y: number, z: number }) {
+        const { x, y, z } = source
+        return new Vector3(x, y, z)
+    }
+
     public static readonly ZERO = this.from1(0)
     public static readonly ONE = this.from1(1)
 }
