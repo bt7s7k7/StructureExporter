@@ -18,6 +18,24 @@ export class ModelProvider {
         return this._blockRenderingInfo.get(block)
     }
 
+    protected _textureCache = new Map<string, TextureResource>()
+    protected async _loadTexture(id: string) {
+        let texture
+
+        texture = this._textureCache.get(id)
+        if (texture != null) return texture
+
+        texture = await this.resourceProvider.loadTexture(id)
+        if (texture == null) {
+            warn(`Sources do not include texture file ${id}`)
+            texture = TextureResource.getFallback()
+        }
+
+        this._textureCache.set(id, texture)
+        return texture
+
+    }
+
     protected async _addFace(generatedUv: FaceInfo["uv"], element: CubicElement, face: number, data: Face) {
         let uv: FaceInfo["uv"]
         if (data.uv) {
@@ -30,12 +48,7 @@ export class ModelProvider {
         if (data.texture.startsWith("#")) {
             texture = data.texture.slice(1)
         } else {
-            const id = normaliseResourceId(data.texture)
-            texture = await this.resourceProvider.loadTexture(id)
-            if (texture == null) {
-                warn(`Sources do not include texture file ${id}`)
-                texture = TextureResource.getFallback()
-            }
+            texture = await this._loadTexture(normaliseResourceId(data.texture))
         }
 
         const info = new FaceInfo(texture, uv, data.rotation ?? 0)
@@ -59,12 +72,7 @@ export class ModelProvider {
                 if (value.startsWith("#")) {
                     texture = value.slice(1)
                 } else {
-                    const id = normaliseResourceId(value)
-                    texture = await this.resourceProvider.loadTexture(id)
-                    if (texture == null) {
-                        warn(`Sources do not include texture file ${id}`)
-                        texture = TextureResource.getFallback()
-                    }
+                    texture = await this._loadTexture(normaliseResourceId(value))
                 }
 
                 model.setTextureVariable(key, texture)
