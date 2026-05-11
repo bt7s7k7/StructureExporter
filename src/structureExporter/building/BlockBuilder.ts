@@ -249,7 +249,7 @@ export class BlockBuilder {
 
             if (transparency == "opaque") {
                 if (texture.transparency != "opaque") transparency = texture.transparency
-            } else if (transparency == "scissor") {
+            } else if (transparency == "cutoff") {
                 if (texture.transparency == "transparent") transparency = "transparent"
             }
 
@@ -276,8 +276,8 @@ export class BlockBuilder {
             .setIndices(indices)
             .setMaterial(transparency == "opaque" ? (
                 this.atlas.getOpaqueMaterial()
-            ) : transparency == "scissor" ? (
-                this.atlas.getScissorMaterial()
+            ) : transparency == "cutoff" ? (
+                this.atlas.getCutoffMaterial()
             ) : transparency == "transparent" ? (
                 this.atlas.getTransparentMaterial()
             ) : unreachable())

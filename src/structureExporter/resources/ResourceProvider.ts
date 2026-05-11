@@ -75,7 +75,7 @@ export class ResourceProvider {
         for (let i = 3 /* Start at 3, which is the alpha channel */; i < data.length; i += 4) {
             const alpha = data[i]
             if (alpha == 0) {
-                if (transparency == "opaque") transparency = "scissor"
+                if (transparency == "opaque") transparency = "cutoff"
             } else if (alpha < 255) {
                 transparency = "transparent"
             }

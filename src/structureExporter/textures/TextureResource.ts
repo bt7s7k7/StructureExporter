@@ -8,7 +8,7 @@ export class TextureResource {
     constructor(
         public readonly width: number,
         public readonly height: number,
-        public readonly transparency: "opaque" | "transparent" | "scissor",
+        public readonly transparency: "opaque" | "transparent" | "cutoff",
         public readonly image: Sharp,
     ) { }
 

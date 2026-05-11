@@ -40,9 +40,9 @@ export class TextureAtlas {
             .setAlphaMode("OPAQUE")
     }
 
-    protected _scissorMaterial: Material | null = null
-    public getScissorMaterial() {
-        return this._scissorMaterial ??= this._createTextureMaterial("block_scissor")
+    protected _cutoffMaterial: Material | null = null
+    public getCutoffMaterial() {
+        return this._cutoffMaterial ??= this._createTextureMaterial("block_cutoff")
             .setAlphaMode("MASK")
     }
 
