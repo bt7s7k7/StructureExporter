@@ -10,7 +10,7 @@ export class BlockModel {
     public readonly rotationQuaternion: vec4 | null = this.rotation == null ? null : (
         this.rotation
             .mul1(Math.PI / 180)
-            .mul3(-1, 1, 1) // Ref: minecraft:piston_head[facing=up]
+            .mul3(-1, -1, -1) // Ref: minecraft:piston_head[facing=up], cluttered:block/kitchen_set_brown_cabinet_inner_corner
             .eulerToQuaternionZYX()
     )
 

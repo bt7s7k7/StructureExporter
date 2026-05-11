@@ -118,7 +118,7 @@ export class Vector3 {
 
     public eulerToQuaternionZYX() {
         const roll = this.x
-        const pitch = -this.y
+        const pitch = this.y
         const yaw = this.z
 
         const cr = Math.cos(roll * 0.5)
