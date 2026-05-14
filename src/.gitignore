@@ -2,4 +2,6 @@
 # UCPeM generated, write above to not be overwritten
 /cli
 /comTypes
+/drawer
 /struct
+/vue3gui

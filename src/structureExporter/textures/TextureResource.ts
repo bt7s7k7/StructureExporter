@@ -1,5 +1,5 @@
-import sharp, { Sharp } from "sharp"
-
+import { Drawer } from "../../drawer/Drawer"
+import { Point } from "../../drawer/Point"
 
 export class TextureResource {
     public x = 0
@@ -9,11 +9,11 @@ export class TextureResource {
         public readonly width: number,
         public readonly height: number,
         public readonly transparency: "opaque" | "transparent" | "cutoff",
-        public readonly image: Sharp,
+        public readonly image: Drawer,
     ) { }
 
     protected static _fallback: TextureResource | null = null
     public static getFallback() {
-        return this._fallback ??= new TextureResource(16, 16, "opaque", sharp(Buffer.from("iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAOklEQVR4AeySsQ0AQAgC791/Z54FpLGxMIqN0QRyJaQkQEnl5ajvASzI4JHLjBiEfi6wMMLQx2cBPgAAAP//7Arj4gAAAAZJREFUAwA1ZDABlggGZAAAAABJRU5ErkJggg==", "base64")))
+        return this._fallback ??= new TextureResource(16, 16, "opaque", Drawer.makeTestPattern("missing-texture", new Point(16, 16)))
     }
 }

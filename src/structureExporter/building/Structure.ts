@@ -1,9 +1,9 @@
 import { parse, simplify } from "prismarine-nbt"
 import { unreachable } from "../../comTypes/util"
 import { NbtBlock, NbtCreateBlock, NbtStructure } from "../minecraft/structure"
+import { Stopwatch } from "../support/Stopwatch"
 import { Vector3 } from "../support/Vector3"
 import { BlockState } from "./BlockState"
-import { Stopwatch } from "../support/Stopwatch"
 
 // Reversed engineered from Minecraft, see BlockPos
 function _smallestEncompassingPowerOfTwo(value: number) {

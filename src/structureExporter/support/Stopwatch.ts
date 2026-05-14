@@ -31,4 +31,9 @@ export class Stopwatch {
             return `${key}${count <= 1 ? "" : `*${count}`}: ${value.toFixed(2)}ms`
         }).join("; ")}`)
     }
+
+    public static clear() {
+        this._times.clear()
+        this._counters.clear()
+    }
 }

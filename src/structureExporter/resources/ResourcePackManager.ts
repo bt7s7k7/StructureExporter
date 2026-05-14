@@ -1,6 +1,6 @@
-import { mkdir, readdir, rm } from "node:fs/promises"
 import { join, resolve } from "node:path"
 import { insertSorted } from "../../comTypes/util"
+import { Platform } from "../Platform"
 import { ResourcePack } from "./ResourcePack"
 
 const _COMPARATOR = (a: ResourcePack, b: ResourcePack) => a.name.localeCompare(b.name, "en")
@@ -27,34 +27,35 @@ export class ResourcePackManager {
 
         const existing = this.packs.findIndex(v => v.name == name)
         if (existing != -1) {
-            await rm(path, { force: true, recursive: true })
+            await this.platform.rm(path)
             this.packs.splice(existing, 1)
         }
 
-        await mkdir(path)
-        const pack = new ResourcePack(name, path)
+        await this.platform.mkdir(path)
+        const pack = new ResourcePack(this.platform, name, path)
         insertSorted(pack, this.packs, _COMPARATOR)
         return pack
     }
 
     protected constructor(
+        public readonly platform: Platform,
         public readonly root: string,
         public readonly packs: ResourcePack[],
     ) { }
 
-    public static async createOrOpen(path: string | null | undefined) {
+    public static async createOrOpen(platform: Platform, path: string | null | undefined) {
         path ??= resolve("resources")
-        await mkdir(path, { recursive: true })
+        await platform.mkdir(path)
 
         const packs: ResourcePack[] = []
 
-        for (const dirent of await readdir(path, { withFileTypes: true })) {
+        for await (const dirent of platform.readdir(path)) {
             if (!dirent.isDirectory()) continue
-            packs.push(new ResourcePack(dirent.name, join(path, dirent.name)))
+            packs.push(new ResourcePack(platform, dirent.name, join(path, dirent.name)))
         }
 
         packs.sort(_COMPARATOR)
 
-        return new ResourcePackManager(path, packs)
+        return new ResourcePackManager(platform, path, packs)
     }
 }

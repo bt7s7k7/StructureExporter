@@ -1,10 +1,9 @@
 import { Document, Node, vec3, vec4 } from "@gltf-transform/core"
 import { BlockBuilder } from "../building/BlockBuilder"
 import { FACES } from "../support/FACES"
+import { Vector3 } from "../support/Vector3"
 import { BlockModel } from "./BlockModel"
 import { FaceInfo } from "./FaceInfo"
-import { Vector3 } from "../support/Vector3"
-import { TextureResource } from "../textures/TextureResource"
 
 
 export abstract class BlockModelElement {
@@ -50,7 +49,7 @@ export class CubicElement extends BlockModelElement {
 
     public static getFallback() {
         const element = new CubicElement(0, Vector3.ZERO.toArray(), Vector3.ONE.toArray())
-        
+
         for (const face of FACES) {
             element.setFaceInfo(face, FaceInfo.getDefault())
         }

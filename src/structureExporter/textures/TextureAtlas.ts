@@ -2,8 +2,10 @@ import { Document, Material, Texture, TextureInfo } from "@gltf-transform/core"
 import { ModelProvider } from "../models/ModelProvider"
 // @ts-ignore
 import layout from "layout"
-import sharp from "sharp"
 import { unreachable } from "../../comTypes/util"
+import { Drawer } from "../../drawer/Drawer"
+import { Point } from "../../drawer/Point"
+import { Platform } from "../Platform"
 import { Stopwatch } from "../support/Stopwatch"
 import { TextureResource } from "./TextureResource"
 
@@ -58,10 +60,10 @@ export class TextureAtlas {
         public readonly width: number,
         public readonly height: number,
         public readonly texture: Texture,
-        public readonly content: Buffer,
+        public readonly content: Uint8Array,
     ) { }
 
-    public static async build(document: Document, models: ModelProvider) {
+    public static async build(platform: Platform, document: Document, models: ModelProvider) {
         const textures = [...new Set(models.listUsedTextures())]
         const atlasBuilder = layout("binary-tree")
 
@@ -70,31 +72,20 @@ export class TextureAtlas {
         }
 
         const atlasLayout: AtlasLayout<TextureResource> = atlasBuilder.export()
-        const atlas = sharp({
-            create: {
-                width: atlasLayout.width,
-                height: atlasLayout.height,
-                background: { r: 0, g: 0, b: 0, alpha: 0 },
-                channels: 4,
-            },
-        }).png()
+        const atlas = Drawer.withSize(atlasLayout)
 
         const stopwatch = new Stopwatch().start("atlas/composite")
 
-        atlas.composite(await Promise.all(atlasLayout.items.map(async item => {
+        for (const item of atlasLayout.items) {
             const texture = item.meta
 
             texture.x = item.x
             texture.y = item.y
 
-            return {
-                input: await texture.image.png().toBuffer(),
-                left: item.x,
-                top: item.y,
-            }
-        })))
+            atlas.blit(texture.image, new Point(item))
+        }
 
-        const atlasData = await atlas.toBuffer()
+        const atlasData = await platform.saveImage(atlas)
 
         stopwatch.end()
 

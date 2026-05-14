@@ -1,6 +1,7 @@
 import { join } from "node:path"
-import sharp from "sharp"
+import { Drawer } from "../../drawer/Drawer"
 import { BlockStateDefinition, ModelDefinition, TextureAnimationDefinition } from "../minecraft/assets"
+import { decodeString, Platform } from "../Platform"
 import { Stopwatch } from "../support/Stopwatch"
 import { TextureResource } from "../textures/TextureResource"
 import { ResourcePackManager } from "./ResourcePackManager"
@@ -18,7 +19,7 @@ export class ResourceProvider {
             return null
         }
 
-        const definition = JSON.parse(content.toString("utf-8")) as BlockStateDefinition
+        const definition = JSON.parse(decodeString(content)) as BlockStateDefinition
         return definition
     }
 
@@ -29,7 +30,7 @@ export class ResourceProvider {
             return null
         }
 
-        const definition = JSON.parse(content.toString("utf-8")) as ModelDefinition
+        const definition = JSON.parse(decodeString(content)) as ModelDefinition
         return definition
     }
 
@@ -41,23 +42,20 @@ export class ResourceProvider {
             return null
         }
 
-        let image = sharp(content)
-        let { width, height } = await image.metadata()
+        let image = Drawer.from(await this.platform.loadImage(content))
+        let { width, height } = image.size
 
         // Check for animated textures to only cut out the first frame
         const metadataFile = await this.resourcePacks.loadResource(fullPath + ".mcmeta")
         if (metadataFile != null) {
-            const metadata: TextureAnimationDefinition = JSON.parse(metadataFile.toString("utf-8"));
+            const metadata: TextureAnimationDefinition = JSON.parse(decodeString(metadataFile));
 
             [width, height] = [
                 metadata.animation.width ?? (metadata.animation.height != null ? width : Math.min(width, height)),
                 metadata.animation.height ?? (metadata.animation.width != null ? height : Math.min(width, height)),
             ]
 
-            image = image.extract({
-                top: 0, left: 0,
-                width, height,
-            })
+            image = new Drawer().matchSize({ width, height }).blit(image)
         }
 
         let transparency: TextureResource["transparency"] = "opaque"
@@ -65,10 +63,7 @@ export class ResourceProvider {
 
         stopwatch.start("imageAnalysis/load")
 
-        const data = await image
-            .ensureAlpha()
-            .raw()
-            .toBuffer()
+        const data = image.getImageData().data
 
         stopwatch.start("imageAnalysis/work")
 
@@ -88,6 +83,7 @@ export class ResourceProvider {
     }
 
     constructor(
+        public readonly platform: Platform,
         public readonly resourcePacks: ResourcePackManager,
     ) {
         for (const key of [
