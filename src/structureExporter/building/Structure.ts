@@ -132,7 +132,7 @@ export class Structure {
         return structure
     }
 
-    public static async load(buffer: Buffer) {
+    public static async load(buffer: Buffer | ArrayBuffer) {
         using _ = new Stopwatch().start("Structure.load")
         const { parsed } = await parse(buffer)
         const data = simplify(parsed) as NbtStructure

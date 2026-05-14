@@ -92,7 +92,10 @@ export class BrowserPlatform extends Platform {
             return target
         } catch (err: any) {
             if (err.name == "NotFoundError") {
-                throw new Error("Cannot resolve path " + path)
+                const error = new Error("Cannot resolve path " + path)
+                // @ts-ignore
+                error.code = "ENOENT"
+                throw error
             }
 
             throw err
@@ -136,10 +139,20 @@ export class BrowserPlatform extends Platform {
     }
 
     public override async read(path: string): Promise<Uint8Array> {
-        const directory = await this._getDirectory(dirname(path))
-        const fileHandle = await directory.getFileHandle(basename(path))
-        const file = await fileHandle.getFile()
-        return await file.bytes()
+        try {
+            const directory = await this._getDirectory(dirname(path))
+            const fileHandle = await directory.getFileHandle(basename(path))
+            const file = await fileHandle.getFile()
+            return await file.bytes()
+        } catch (err: any) {
+            if (err.name == "NotFoundError") {
+                const error = new Error("Cannot read file " + path)
+                // @ts-ignore
+                error.code = "ENOENT"
+                throw error
+            }
+            throw err
+        }
     }
 
     public override async write(path: string, content: string | Uint8Array): Promise<void> {
@@ -176,7 +189,7 @@ export class BrowserPlatform extends Platform {
 
     public override async saveImage(image: Drawer): Promise<Uint8Array> {
         const dataUrl = image.ctx.canvas.toDataURL("image/png")
-        return fromBase64Binary(dataUrl)
+        return fromBase64Binary(dataUrl.slice("data:image/png;base64,".length))
     }
 
     protected constructor(

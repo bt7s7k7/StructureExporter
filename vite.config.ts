@@ -14,7 +14,7 @@ export default defineConfig(({ mode }) => {
     return {
         plugins: [
             vue(), vueJsx(),
-            nodePolyfills({ include: ["path"] }),
+            nodePolyfills({ include: ["path", "zlib", "stream", "buffer"] }),
         ],
         resolve: {
             preserveSymlinks: true,

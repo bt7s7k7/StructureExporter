@@ -1,12 +1,19 @@
-import { mdiCancel, mdiFileOutline, mdiFolderOutline } from "@mdi/js"
+import { Document, PropertyType, WebIO } from "@gltf-transform/core"
+import { dedup, flatten, join as join_2 } from "@gltf-transform/functions"
+import { mdiCancel, mdiCubeOutline, mdiDownload, mdiFileOutline, mdiFolderOutline } from "@mdi/js"
 import { basename, extname, join } from "node:path"
-import { defineComponent, inject, ref, shallowReactive } from "vue"
+import { defineComponent, inject, ref, shallowReactive, shallowRef } from "vue"
 import { EMPTY_ARRAY } from "../comTypes/const"
-import { makeRandomID, unreachable } from "../comTypes/util"
+import { makeRandomID, toBase64Binary, unreachable } from "../comTypes/util"
+import { BlockBuilder } from "../structureExporter/building/BlockBuilder"
+import { Structure } from "../structureExporter/building/Structure"
+import { ModelProvider } from "../structureExporter/models/ModelProvider"
 import { ResourcePackManager } from "../structureExporter/resources/ResourcePackManager"
+import { ResourceProvider } from "../structureExporter/resources/ResourceProvider"
 import { error, info } from "../structureExporter/support/log"
 import { Stopwatch } from "../structureExporter/support/Stopwatch"
-import { Button } from "../vue3gui/Button"
+import { TextureAtlas } from "../structureExporter/textures/TextureAtlas"
+import { Button, ButtonGroup } from "../vue3gui/Button"
 import { useDynamicsEmitter } from "../vue3gui/DynamicsEmitter"
 import { grid } from "../vue3gui/grid"
 import { MountNode } from "../vue3gui/MountNode"
@@ -22,6 +29,16 @@ export const ConverterPage = (defineComponent({
         const resources: string[] = shallowReactive([])
         const platform = inject(BROWSER_PLATFORM) ?? unreachable()
         const emitter = useDynamicsEmitter()
+        
+        const simplify = ref(false)
+        const dryRun = ref(false)
+
+        const inputFile = shallowRef<Uint8Array | null>(null)
+        const inputFileName = ref<string>("")
+        const atlasFile = shallowRef<Uint8Array | null>(null)
+        const modelFile = shallowRef<Uint8Array | null>(null)
+
+        const show = ref<"atlas" | "model">("model")
 
         async function reloadResources() {
             await platform.invalidateCache()
@@ -117,9 +134,24 @@ export const ConverterPage = (defineComponent({
 
             if (extensions.every(v => v == ".zip" || v == ".jar")) {
                 void uploadResources(files)
+            } else if (extensions.every(v => v == ".nbt")) {
+                if (files.length != 1) return emitter.alert("Too many files")
+                void setInput(files[0])
             } else {
                 void emitter.alert("Unsupported file")
             }
+        }
+
+        async function setInput(file: File | null) {
+            if (file == null) {
+                inputFile.value = null
+            } else {
+                inputFileName.value = file.name
+                inputFile.value = await file.bytes()
+            }
+
+            modelFile.value = null
+            atlasFile.value = null
         }
 
         async function deleteResource(index: number) {
@@ -153,6 +185,72 @@ export const ConverterPage = (defineComponent({
             }
         }
 
+        async function rebuild() {
+            Stopwatch.clear()
+            platform.clearLog()
+
+            using disposer = new DisposableStack()
+            disposer.defer(() => Stopwatch.dump())
+
+            if (!inputFile.value) unreachable()
+            const inputData = inputFile.value
+
+            const resourcePacks = await ResourcePackManager.createOrOpen(platform, null)
+            const resourceProvider = new ResourceProvider(platform, resourcePacks)
+
+            const structure = await Structure.load(inputData.buffer as ArrayBuffer)
+            const document = new Document()
+            const scene = document.createScene()
+
+            const modelProvider = new ModelProvider(resourceProvider)
+
+            await modelProvider.prepareAssets(structure.getAssets())
+
+            const atlas = await TextureAtlas.build(platform, document, modelProvider)
+            atlasFile.value = atlas.content
+            show.value = "atlas"
+            if (dryRun.value) return
+
+            const blockBuilder = new BlockBuilder(document, modelProvider, atlas)
+            blockBuilder.buildStructure(structure, scene)
+
+            const stopwatch = new Stopwatch().start("simplify")
+            if (simplify.value) {
+                await document.transform(
+                    dedup({ propertyTypes: [PropertyType.ACCESSOR] }),
+                    flatten(),
+                    join_2(),
+                )
+            } else {
+                await document.transform(
+                    dedup({ propertyTypes: [PropertyType.ACCESSOR] }),
+                )
+            }
+            stopwatch.end()
+
+            const io = new WebIO()
+            modelFile.value = await io.writeBinary(document)
+            show.value = "model"
+        }
+
+        function downloadAtlas()  {
+            if (atlasFile.value == null) return
+            const url = URL.createObjectURL(new Blob([atlasFile.value.buffer as ArrayBuffer], { type: "image/png" }))
+            const download = document.createElement("a")
+            download.download = basename(inputFileName.value, extname(inputFileName.value)) + ".png"
+            download.href = url
+            download.click()
+        }
+
+        function downloadModel()  {
+            if (modelFile.value == null) return
+            const url = URL.createObjectURL(new Blob([modelFile.value.buffer as ArrayBuffer], { type: "model/gltf-binary" }))
+            const download = document.createElement("a")
+            download.download = basename(inputFileName.value, extname(inputFileName.value)) + ".glb"
+            download.href = url
+            download.click()
+        }
+
         return () => (
             <UploadOverlay style={grid().columns("1fr", "200px").rows("auto", "1fr").$} class="flex-fill" onDrop={handleFile}>
                 <div style={grid().colspan(2).$} class="border-bottom flex row">
@@ -161,17 +259,47 @@ export const ConverterPage = (defineComponent({
                     <Button clear icon={mdiFolderOutline} label="Import Resource" onClick={() => uploadResources()} />
                 </div>
                 <div class="border-right">
-                    <div class="absolute bottom-0 left-0 p-2 flex column gap-2 start-cross">
+                    {atlasFile.value != null && show.value == "atlas" && (
+                        <img class="absolute-fill img-contain pixelated bg-dark" src={"data:image/png;base64," + toBase64Binary(atlasFile.value)} />
+                    )}
+                    <div class="absolute bottom-0 left-0 p-2 flex column gap-2 start-cross" style="max-width: 800px">
                         <MountNode node={platform.logElement} />
                         <Button v-label:right="Clear Log" icon={mdiCancel} onClick={() => platform.clearLog()} />
                     </div>
                 </div>
                 <div class="p-2 flex column gap-2">
+                    <div class="border rounded">
+                        <div class="p-1 px-2 border-bottom">Structure</div>
+                        {inputFile.value ? (
+                            <div class="p-2 flex row">
+                                <TextField modelValue={inputFileName.value} class="flex-fill" clear disabled />
+                                <Button clear icon={mdiCancel} onClick={() => inputFile.value = null} />
+                            </div>
+                        ) : (
+                            <div class="p-2 muted">Drop a structure file</div>
+                        )}
+                    </div>
+                    <ToggleButton plain label="Simplify" vModel={simplify.value} />
+                    <ToggleButton plain label="Dry Run" vModel={dryRun.value} />
+                    <div class="flex row">
+                        <ButtonGroup disabled={atlasFile.value == null}>
+                            <Button class="flex-fill" variant={show.value == "atlas" ? "primary" : "secondary"}  label="Atlas" onClick={() => show.value = "atlas"} />
+                            <Button clear icon={mdiDownload} onClick={downloadAtlas} />
+                        </ButtonGroup>
+                    </div>
+                    <div class="flex row">
+                        <ButtonGroup disabled={modelFile.value == null}>
+                            <Button class="flex-fill" variant={show.value == "model" ? "primary" : "secondary"} disabled={modelFile.value == null} label="Model" onClick={() => show.value = "model"} />
+                            <Button clear icon={mdiDownload} onClick={downloadModel} />
+                        </ButtonGroup>
+                    </div>
+                    <Button variant="success" disabled={inputFile.value == null} label="Build" icon={mdiCubeOutline} onClick={rebuild} />
+                    <div class="border-bottom"></div>
                     <FileList
                         files={resources}
                         icon={mdiFileOutline}
                         placeholder={"No resources loaded"}
-                        class="h-500"
+                        class="flex-fill"
                         onDelete={deleteResource}
                         onRename={renameResource}
                     >
