@@ -3,14 +3,14 @@ import { dedup, flatten, join as join_2 } from "@gltf-transform/functions"
 import { mdiCancel, mdiCubeOutline, mdiDownload, mdiFileOutline, mdiFolderOutline } from "@mdi/js"
 import { basename, extname, join } from "node:path"
 import { defineComponent, inject, ref, shallowReactive, shallowRef } from "vue"
-import { EMPTY_ARRAY } from "../comTypes/const"
+import { EMPTY_ARRAY, NOOP } from "../comTypes/const"
 import { makeRandomID, toBase64Binary, unreachable } from "../comTypes/util"
 import { BlockBuilder } from "../structureExporter/building/BlockBuilder"
 import { Structure } from "../structureExporter/building/Structure"
 import { ModelProvider } from "../structureExporter/models/ModelProvider"
 import { ResourcePackManager } from "../structureExporter/resources/ResourcePackManager"
 import { ResourceProvider } from "../structureExporter/resources/ResourceProvider"
-import { error, info } from "../structureExporter/support/log"
+import { error, info, print } from "../structureExporter/support/log"
 import { Stopwatch } from "../structureExporter/support/Stopwatch"
 import { TextureAtlas } from "../structureExporter/textures/TextureAtlas"
 import { Button, ButtonGroup } from "../vue3gui/Button"
@@ -34,11 +34,35 @@ export const ConverterPage = (defineComponent({
         const dryRun = ref(false)
 
         const inputFile = shallowRef<Uint8Array | null>(null)
-        const inputFileName = ref<string>("")
+        const inputFileName = ref("")
         const atlasFile = shallowRef<Uint8Array | null>(null)
         const modelFile = shallowRef<Uint8Array | null>(null)
+        const storageEstimate = ref("")
 
         const show = ref<"atlas" | "model">("model")
+
+        const cachedResources = shallowRef<[ResourcePackManager, ResourceProvider] | null>(null)
+
+        function reloadSavedState() {
+            void platform.read("input.nbt").then(v => inputFile.value = v, NOOP)
+            void platform.read("input.txt").then(v => inputFileName.value = new TextDecoder().decode(v), NOOP)
+            void platform.read("atlas.png").then(v => atlasFile.value = v, NOOP)
+            void platform.read("model.glb").then(v => modelFile.value = v, NOOP)
+        }
+
+        async function calculateStorageEstimate() {
+            const estimate = await navigator.storage.estimate()
+            const value = "usageDetails" in estimate ? (estimate.usageDetails as any).fileSystem : estimate.usage
+            if (value == null) {
+                storageEstimate.value = ""
+            } else if (value > 1024 ** 2) {
+                storageEstimate.value = `${(value / 1024 ** 2).toFixed(3)} MiB`
+            } else {
+                storageEstimate.value = `${(value / 1024).toFixed(3)} KiB`
+            }
+        }
+
+        reloadSavedState()
 
         async function reloadResources() {
             await platform.invalidateCache()
@@ -48,6 +72,10 @@ export const ConverterPage = (defineComponent({
             for (const pack of manager.packs) {
                 resources.push(pack.name)
             }
+
+            cachedResources.value = [manager, new ResourceProvider(platform, manager)]
+
+            await calculateStorageEstimate()
         }
 
         void reloadResources()
@@ -143,15 +171,24 @@ export const ConverterPage = (defineComponent({
         }
 
         async function setInput(file: File | null) {
+            modelFile.value = null
+            atlasFile.value = null
+
             if (file == null) {
                 inputFile.value = null
+                await platform.rm("input.nbt").catch(NOOP)
+                await platform.rm("input.txt").catch(NOOP)
             } else {
                 inputFileName.value = file.name
                 inputFile.value = await file.bytes()
+                await platform.write("input.nbt", inputFile.value)
+                await platform.write("input.txt", inputFileName.value)
             }
 
-            modelFile.value = null
-            atlasFile.value = null
+            await platform.rm("model.glb").catch(NOOP)
+            await platform.rm("atlas.png").catch(NOOP)
+
+            await calculateStorageEstimate()
         }
 
         async function deleteResource(index: number) {
@@ -191,28 +228,40 @@ export const ConverterPage = (defineComponent({
 
             using disposer = new DisposableStack()
             disposer.defer(() => Stopwatch.dump())
+            disposer.defer(() => calculateStorageEstimate())
 
             if (!inputFile.value) unreachable()
             const inputData = inputFile.value
 
-            const resourcePacks = await ResourcePackManager.createOrOpen(platform, null)
-            const resourceProvider = new ResourceProvider(platform, resourcePacks)
+            if (cachedResources.value == null) {
+                await reloadResources()
+            }
+
+            const [, resourceProvider] = cachedResources.value!
+
+            print("Loading resources...")
 
             const structure = await Structure.load(inputData.buffer as ArrayBuffer)
             const document = new Document()
             const scene = document.createScene()
 
             const modelProvider = new ModelProvider(resourceProvider)
+            modelProvider.assetLoadingConcurrency = 5
 
             await modelProvider.prepareAssets(structure.getAssets())
 
             const atlas = await TextureAtlas.build(platform, document, modelProvider)
             atlasFile.value = atlas.content
             show.value = "atlas"
+            void platform.write("atlas.png", atlas.content)
             if (dryRun.value) return
+
+            print("Building model...")
 
             const blockBuilder = new BlockBuilder(document, modelProvider, atlas)
             blockBuilder.buildStructure(structure, scene)
+
+            print("Simplifying...")
 
             const stopwatch = new Stopwatch().start("simplify")
             if (simplify.value) {
@@ -230,7 +279,10 @@ export const ConverterPage = (defineComponent({
 
             const io = new WebIO()
             modelFile.value = await io.writeBinary(document)
+            void platform.write("model.glb", modelFile.value)
             show.value = "model"
+
+            print("Done")
         }
 
         function downloadAtlas()  {
@@ -253,9 +305,14 @@ export const ConverterPage = (defineComponent({
 
         return () => (
             <UploadOverlay style={grid().columns("1fr", "200px").rows("auto", "1fr").$} class="flex-fill" onDrop={handleFile}>
-                <div style={grid().colspan(2).$} class="border-bottom flex row">
+                <div style={grid().colspan(2).$} class="border-bottom flex row center-cross">
                     <Button clear label="New" />
                     <div class="flex-fill"></div>
+                    {storageEstimate.value && (
+                        <small>
+                            Storage: {storageEstimate.value}
+                        </small>
+                    )}
                     <Button clear icon={mdiFolderOutline} label="Import Resource" onClick={() => uploadResources()} />
                 </div>
                 <div class="border-right">
@@ -273,7 +330,7 @@ export const ConverterPage = (defineComponent({
                         {inputFile.value ? (
                             <div class="p-2 flex row">
                                 <TextField modelValue={inputFileName.value} class="flex-fill" clear disabled />
-                                <Button clear icon={mdiCancel} onClick={() => inputFile.value = null} />
+                                <Button clear icon={mdiCancel} onClick={() => setInput(null)} />
                             </div>
                         ) : (
                             <div class="p-2 muted">Drop a structure file</div>

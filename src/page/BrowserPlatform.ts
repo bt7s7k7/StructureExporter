@@ -75,6 +75,8 @@ export class BrowserPlatform extends Platform {
 
     protected async _getDirectory(path: string, options?: FileSystemGetDirectoryOptions) {
         if (path.startsWith("/")) path = path.slice(1)
+        if (path == "" || path == ".") return this.root
+
         const cached = this._pathCache.get(path)
         if (cached) return cached
 

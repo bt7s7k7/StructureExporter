@@ -143,11 +143,13 @@ export class ModelProvider {
         }
     }
 
+    public assetLoadingConcurrency = 5
+
     public async prepareAssets(palette: Iterable<BlockState>) {
         using stopwatch = new Stopwatch()
         stopwatch.start("prepareAssets/load")
 
-        const queue = asyncConcurrency<any>(5)
+        const queue = asyncConcurrency<any>(this.assetLoadingConcurrency)
 
         for (const state of palette) {
             if (this._blockRenderingInfo.has(state.block)) continue
