@@ -1,6 +1,6 @@
 import { Document, PropertyType, WebIO } from "@gltf-transform/core"
 import { dedup, flatten, join as join_2 } from "@gltf-transform/functions"
-import { mdiCancel, mdiCubeOutline, mdiDownload, mdiFileOutline, mdiFolderOutline } from "@mdi/js"
+import { mdiBookOpenBlankVariant, mdiCancel, mdiCubeOutline, mdiDownload, mdiFileOutline, mdiFolderOutline } from "@mdi/js"
 import { basename, extname, join } from "node:path"
 import { defineComponent, inject, ref, shallowReactive, shallowRef, watch } from "vue"
 import { EMPTY_ARRAY, NOOP } from "../comTypes/const"
@@ -312,15 +312,14 @@ export const ConverterPage = (defineComponent({
 
         return () => (
             <UploadOverlay style={grid().columns("1fr", "200px").rows("auto", "1fr").$} class="flex-fill" onDrop={handleFile}>
-                <div style={grid().colspan(2).$} class="border-bottom flex row center-cross">
-                    <Button clear label="New" />
-                    <div class="flex-fill"></div>
+                <div style={grid().colspan(2).$} class="border-bottom flex row center-cross end-main">
                     {storageEstimate.value && (
-                        <small>
+                        <small class="mx-1">
                             Storage: {storageEstimate.value}
                         </small>
                     )}
-                    <Button clear icon={mdiFolderOutline} label="Import Resource" onClick={() => uploadResources()} />
+                    <Button clear icon={mdiFolderOutline} label="Import Resources" onClick={() => uploadResources()} />
+                    <Button clear icon={mdiBookOpenBlankVariant} label="Help" href="https://github.com/bt7s7k7/StructureExporter#using-the-browser-version" />
                 </div>
                 <div class="border-right">
                     {atlasFile.value != null && show.value == "atlas" && (
