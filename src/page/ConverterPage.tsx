@@ -2,7 +2,7 @@ import { Document, PropertyType, WebIO } from "@gltf-transform/core"
 import { dedup, flatten, join as join_2 } from "@gltf-transform/functions"
 import { mdiCancel, mdiCubeOutline, mdiDownload, mdiFileOutline, mdiFolderOutline } from "@mdi/js"
 import { basename, extname, join } from "node:path"
-import { defineComponent, inject, ref, shallowReactive, shallowRef } from "vue"
+import { defineComponent, inject, ref, shallowReactive, shallowRef, watch } from "vue"
 import { EMPTY_ARRAY, NOOP } from "../comTypes/const"
 import { makeRandomID, toBase64Binary, unreachable } from "../comTypes/util"
 import { BlockBuilder } from "../structureExporter/building/BlockBuilder"
@@ -22,6 +22,7 @@ import { ToggleButton } from "../vue3gui/ToggleButton"
 import { UploadOverlay } from "../vue3gui/UploadOverlay"
 import { BROWSER_PLATFORM } from "./BrowserPlatform"
 import { FileList } from "./FileList"
+import { ModelViewer, ModelViewerState } from "./ModelViewer"
 
 export const ConverterPage = (defineComponent({
     name: "ConverterPage",
@@ -303,6 +304,12 @@ export const ConverterPage = (defineComponent({
             download.click()
         }
 
+        const modelViewer = new ModelViewerState()
+
+        watch(modelFile, modelFile => {
+            void modelViewer.showModel(modelFile ?? null, inputFileName.value ?? "")
+        })
+
         return () => (
             <UploadOverlay style={grid().columns("1fr", "200px").rows("auto", "1fr").$} class="flex-fill" onDrop={handleFile}>
                 <div style={grid().colspan(2).$} class="border-bottom flex row center-cross">
@@ -319,9 +326,17 @@ export const ConverterPage = (defineComponent({
                     {atlasFile.value != null && show.value == "atlas" && (
                         <img class="absolute-fill img-contain pixelated bg-dark" src={"data:image/png;base64," + toBase64Binary(atlasFile.value)} />
                     )}
+                    {show.value == "model" && (
+                        <ModelViewer class="absolute-fill" state={modelViewer} />
+                    )}
                     <div class="absolute bottom-0 left-0 p-2 flex column gap-2 start-cross" style="max-width: 800px">
                         <MountNode node={platform.logElement} />
-                        <Button v-label:right="Clear Log" icon={mdiCancel} onClick={() => platform.clearLog()} />
+                        <div class="flex row gap-2">
+                            <Button v-label:right="Clear Log" icon={mdiCancel} onClick={() => platform.clearLog()} />
+                            {modelFile.value != null && show.value == "model" && (
+                                <Button label="Reset Camera" onClick={() => modelViewer.resetCamera()} />
+                            )}
+                        </div>
                     </div>
                 </div>
                 <div class="p-2 flex column gap-2">

@@ -21,10 +21,12 @@
         "@gltf-transform/core": "^4.3.0",
         "@gltf-transform/functions": "^4.3.0",
         "@mdi/js": "^7.4.47",
+        "@types/three": "^0.184.1",
         "fflate": "^0.8.2",
         "layout": "^2.2.0",
         "prismarine-nbt": "^2.8.0",
         "skia-canvas": "^3.0.8",
+        "three": "^0.184.0",
         "vue": "^3.5.34",
         "vue-router": "^5.0.7"
     }
