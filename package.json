@@ -8,7 +8,7 @@
         "@vitejs/plugin-vue": "^6.0.6",
         "@vitejs/plugin-vue-jsx": "^5.1.5",
         "dotenv": "^17.4.2",
-        "esbuild": "^0.23.0",
+        "esbuild": "^0.28.1",
         "oxlint": "^1.50.0",
         "oxlint-tsgolint": "^0.15.0",
         "sass": "^1.99.0",
