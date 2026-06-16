@@ -8,6 +8,7 @@ import { makeRandomID, toBase64Binary, unreachable } from "../comTypes/util"
 import { BlockBuilder } from "../structureExporter/building/BlockBuilder"
 import { Structure } from "../structureExporter/building/Structure"
 import { ModelProvider } from "../structureExporter/models/ModelProvider"
+import { PluginManager } from "../structureExporter/plugins/PluginManager"
 import { ResourcePackManager } from "../structureExporter/resources/ResourcePackManager"
 import { ResourceProvider } from "../structureExporter/resources/ResourceProvider"
 import { error, info, print } from "../structureExporter/support/log"
@@ -42,7 +43,7 @@ export const ConverterPage = (defineComponent({
 
         const show = ref<"atlas" | "model">("model")
 
-        const cachedResources = shallowRef<[ResourcePackManager, ResourceProvider] | null>(null)
+        const cachedResources = shallowRef<[ResourcePackManager, PluginManager, ResourceProvider] | null>(null)
 
         function reloadSavedState() {
             void platform.read("input.nbt").then(v => inputFile.value = v, NOOP)
@@ -74,7 +75,9 @@ export const ConverterPage = (defineComponent({
                 resources.push(pack.name)
             }
 
-            cachedResources.value = [manager, new ResourceProvider(platform, manager)]
+            const plugins = new PluginManager(platform)
+
+            cachedResources.value = [manager, plugins, new ResourceProvider(plugins, platform, manager)]
 
             await calculateStorageEstimate()
         }
@@ -238,11 +241,11 @@ export const ConverterPage = (defineComponent({
                 await reloadResources()
             }
 
-            const [, resourceProvider] = cachedResources.value!
+            const [,plugins, resourceProvider] = cachedResources.value!
 
             print("Loading resources...")
 
-            const structure = await Structure.load(inputData.buffer as ArrayBuffer)
+            const structure = await Structure.load(plugins, inputData.buffer as ArrayBuffer)
             const document = new Document()
             const scene = document.createScene()
 

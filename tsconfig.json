@@ -9,7 +9,8 @@
         "sourceMap": true,
         "resolveJsonModule": true,
         "esModuleInterop": true,
-        "declaration": false,
+        "declaration": true,
+        "emitDeclarationOnly": true,
         "lib": [
             "ESNext",
             "DOM",
@@ -23,7 +24,7 @@
         "useDefineForClassFields": false,
         "skipLibCheck": true,
         "skipDefaultLibCheck": true,
-        "outDir": "build",
+        "outDir": "types.local",
         "rootDir": "src",
     },
     "include": [

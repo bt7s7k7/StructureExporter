@@ -1,6 +1,7 @@
 import { Document, NodeIO, PropertyType } from "@gltf-transform/core"
 import { dedup, flatten, join as join_2 } from "@gltf-transform/functions"
 import { mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises"
+import { createRequire, registerHooks } from "node:module"
 import { basename, dirname, extname, join } from "node:path"
 import { Canvas, Image, ImageData } from "skia-canvas"
 import { Cli } from "./cli/Cli"
@@ -10,11 +11,17 @@ import { BlockBuilder } from "./structureExporter/building/BlockBuilder"
 import { Structure } from "./structureExporter/building/Structure"
 import { ModelProvider } from "./structureExporter/models/ModelProvider"
 import { Platform } from "./structureExporter/Platform"
+import { Plugin } from "./structureExporter/plugins/Plugin"
+import * as pluginApi from "./structureExporter/plugins/pluginApi"
+import { PluginManager } from "./structureExporter/plugins/PluginManager"
 import { ResourcePackManager } from "./structureExporter/resources/ResourcePackManager"
 import { ResourceProvider } from "./structureExporter/resources/ResourceProvider"
 import { info } from "./structureExporter/support/log"
 import { Stopwatch } from "./structureExporter/support/Stopwatch"
 import { TextureAtlas } from "./structureExporter/textures/TextureAtlas"
+
+// @ts-ignore
+globalThis.__structureExporter_pluginApi = pluginApi
 
 const _PLATFORM = new class NodePlatform extends Platform {
     public override async mkdir(path: string): Promise<void> {
@@ -47,6 +54,37 @@ const _PLATFORM = new class NodePlatform extends Platform {
         const canvas = image.ctx.canvas as any as Canvas
         return await canvas.toBuffer("png")
     }
+
+    public initPluginApi() {
+        registerHooks({
+            resolve(specifier, context, nextResolve) {
+                if (specifier == "structure-exporter") {
+                    return {
+                        url: "dynamic://structure-exporter",
+                        shortCircuit: true,
+                    }
+                }
+
+                return nextResolve(specifier)
+            },
+            load(url, context, nextLoad) {
+                if (url == "dynamic://structure-exporter") {
+                    return {
+                        source: "module.exports = __structureExporter_pluginApi",
+                        format: "commonjs",
+                        shortCircuit: true,
+                    }
+                }
+
+                return nextLoad(url, context)
+            },
+        })
+    }
+
+    public override async loadPlugin(path: string): Promise<Plugin> {
+        const require = createRequire(path)
+        return require(path)
+    }
 }
 
 Drawer.CONTEXT_FACTORY = () => new Canvas().getContext("2d") as any
@@ -65,10 +103,21 @@ const cli = new Cli("structureExporter")
             dryRun: Type.boolean.as(Type.nullable),
             dumpAtlas: Type.boolean.as(Type.nullable),
             cullEdges: Type.boolean.as(Type.nullable),
+            plugin: Type.string.as(Type.array),
         },
-        async callback(input, output, { resourcePath, simplify, dryRun, dumpAtlas, cullEdges }) {
+        async callback(input, output, { resourcePath, simplify, dryRun, dumpAtlas, cullEdges, plugin: pluginPaths }) {
+            const plugins = new PluginManager(_PLATFORM)
+            if (pluginPaths.length > 0) {
+                _PLATFORM.initPluginApi()
+
+                for (let path of pluginPaths) {
+                    path = join(process.cwd(), path)
+                    await plugins.loadPlugin(path)
+                }
+            }
+
             const resourcePacks = await ResourcePackManager.createOrOpen(_PLATFORM, resourcePath)
-            const resourceProvider = new ResourceProvider(_PLATFORM, resourcePacks)
+            const resourceProvider = new ResourceProvider(plugins, _PLATFORM, resourcePacks)
 
             if (output == null) {
                 output = join(dirname(input), basename(input, extname(input)) + ".glb")
@@ -80,11 +129,13 @@ const cli = new Cli("structureExporter")
             await _PLATFORM.mkdir(dirname(output))
 
             const inputData = await readFile(input)
-            const structure = await Structure.load(inputData)
+            const structure = await Structure.load(plugins, inputData)
             const document = new Document()
             const scene = document.createScene()
 
             const modelProvider = new ModelProvider(resourceProvider)
+
+            plugins.executeHandler("onReady", structure, resourceProvider, modelProvider)
 
             await modelProvider.prepareAssets([...structure.getAssets()])
 

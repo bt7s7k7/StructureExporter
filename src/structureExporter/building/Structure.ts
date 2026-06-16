@@ -1,6 +1,7 @@
 import { parse, simplify } from "prismarine-nbt"
 import { unreachable } from "../../comTypes/util"
 import { NbtBlock, NbtCreateBlock, NbtStructure } from "../minecraft/structure"
+import { PluginManager } from "../plugins/PluginManager"
 import { Stopwatch } from "../support/Stopwatch"
 import { Vector3 } from "../support/Vector3"
 import { BlockState } from "./BlockState"
@@ -47,7 +48,7 @@ export class Structure {
         public readonly blocks: NbtBlock[],
     ) { }
 
-    public static fromNbt(data: NbtStructure, position = Vector3.ZERO, rotation = Vector3.ZERO) {
+    public static fromNbt(plugins: PluginManager, data: NbtStructure, position = Vector3.ZERO, rotation = Vector3.ZERO) {
         // Create contraption format compatibility
         if (!("palette" in data) && "Palette" in data) {
             // @ts-ignore
@@ -114,7 +115,7 @@ export class Structure {
                     rotation = rotation.with(entity.nbt.Axis.toLowerCase(), (entity.nbt.Angle ?? unreachable()) / 180 * Math.PI)
                 }
 
-                const substructure = Structure.fromNbt(entity.nbt.Contraption.Blocks, position, rotation)
+                const substructure = Structure.fromNbt(plugins, entity.nbt.Contraption.Blocks, position, rotation)
                 structure.substructures.push(substructure)
             }
         }
@@ -124,19 +125,19 @@ export class Structure {
                 let position = Vector3.fromObject(sublevel.position)
                 let rotation = Vector3.fromObject(sublevel.orientation)
 
-                const substructure = Structure.fromNbt(sublevel, position, rotation)
+                const substructure = Structure.fromNbt(plugins, sublevel, position, rotation)
                 structure.substructures.push(substructure)
             }
         }
 
-        return structure
+        return plugins.executeHook("onLoadStructure", structure)
     }
 
-    public static async load(buffer: Buffer | ArrayBuffer) {
+    public static async load(plugins: PluginManager, buffer: Buffer | ArrayBuffer) {
         using _ = new Stopwatch().start("Structure.load")
         const { parsed } = await parse(buffer)
         const data = simplify(parsed) as NbtStructure
 
-        return this.fromNbt(data)
+        return this.fromNbt(plugins, data)
     }
 }

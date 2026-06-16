@@ -9,6 +9,7 @@ build
 dev
 
 /resources
+/plugin-api.d.ts
 
 # UCPEM
 ucpem_ports

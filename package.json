@@ -2,7 +2,11 @@
     "name": "structure-exporter",
     "version": "0.0.0",
     "private": true,
+    "scripts": {
+        "plugin-api": "tsc && api-extractor run --local && ucpem run plugin-api"
+    },
     "devDependencies": {
+        "@microsoft/api-extractor": "^7.58.9",
         "@stylistic/eslint-plugin": "^5.9.0",
         "@types/node": "^22.0.0",
         "@vitejs/plugin-vue": "^6.0.6",
