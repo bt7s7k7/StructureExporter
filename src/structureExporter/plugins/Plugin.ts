@@ -1,4 +1,5 @@
 import { Structure } from "../building/Structure"
+import { Platform } from "../Platform"
 import { BlockStateDefinition, Drawer, ModelDefinition, ModelProvider, ResourceProvider, TextureResource } from "./pluginApi"
 
 export interface PluginHooks {
@@ -13,7 +14,8 @@ export interface PluginHooks {
 }
 
 export interface PluginEvents {
-    onReady(structure: Structure, resourceProvider: ResourceProvider, modelProvider: ModelProvider): void
+    onInit(platform: Platform, input: string, output: string): Promise<void>
+    onReady(structure: Structure, resourceProvider: ResourceProvider, modelProvider: ModelProvider): Promise<void>
 }
 
 export interface PluginOptions extends Partial<PluginHooks>, Partial<PluginEvents> {
@@ -31,6 +33,7 @@ const _NOOP_PLUGIN: Plugin = {
     name: "noop",
     onLoadStructure: null,
     onReady: null,
+    onInit: null,
     onBeforeLoadBlockStateDefinition: null,
     onBeforeLoadModelDefinition: null,
     onBeforeLoadTexture: null,

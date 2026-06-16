@@ -116,14 +116,16 @@ const cli = new Cli("structureExporter")
                 }
             }
 
-            const resourcePacks = await ResourcePackManager.createOrOpen(_PLATFORM, resourcePath)
-            const resourceProvider = new ResourceProvider(plugins, _PLATFORM, resourcePacks)
-
             if (output == null) {
                 output = join(dirname(input), basename(input, extname(input)) + ".glb")
             } else if (output.endsWith("/")) {
                 output += basename(input, extname(input)) + ".glb"
             }
+
+            await plugins.executeHandlerAsync("onInit", _PLATFORM, input, output)
+
+            const resourcePacks = await ResourcePackManager.createOrOpen(_PLATFORM, resourcePath)
+            const resourceProvider = new ResourceProvider(plugins, _PLATFORM, resourcePacks)
 
             info(`Converting "${input}" -> "${output}"`)
             await _PLATFORM.mkdir(dirname(output))
@@ -135,7 +137,7 @@ const cli = new Cli("structureExporter")
 
             const modelProvider = new ModelProvider(resourceProvider)
 
-            plugins.executeHandler("onReady", structure, resourceProvider, modelProvider)
+            await plugins.executeHandlerAsync("onReady", structure, resourceProvider, modelProvider)
 
             await modelProvider.prepareAssets([...structure.getAssets()])
 

@@ -38,7 +38,15 @@ export class PluginManager {
     public executeHandler<K extends keyof PluginEvents>(name: K, ...args: Parameters<PluginEvents[K]>) {
         for (const plugin of this.plugins) {
             // @ts-ignore
-            plugin[name]?.(...args)
+            const result = plugin[name]?.(...args)
+            if (result instanceof Promise) throw new TypeError(`Hook of ${plugin.name}:${name} returned a promise`)
+        }
+    }
+
+    public async executeHandlerAsync<K extends keyof PluginEvents>(name: K, ...args: Parameters<PluginEvents[K]>) {
+        for (const plugin of this.plugins) {
+            // @ts-ignore
+            await plugin[name]?.(...args)
         }
     }
 
