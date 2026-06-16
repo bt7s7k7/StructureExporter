@@ -6,7 +6,7 @@ import { BlockModelElement } from "./BlockModelElement"
 
 
 export class BlockModel {
-    public loaded = false
+    public used = false
 
     public readonly rotationQuaternion: vec4 | null = this.rotation == null ? null : (
         this.rotation

@@ -217,6 +217,7 @@ export class ModelProvider {
 
         for (const [id, model] of requiredModels) {
             if (!model.valid) continue
+            model.used = true
             queue.push(() => this._loadModelContents(id, model))
         }
 
@@ -226,6 +227,9 @@ export class ModelProvider {
         // Check what models are full blocks and opaque for face culling
         for (const info of this._blockRenderingInfo.values()) {
             forModels: for (const model of info.getModels()) {
+                if (!model.used) continue
+                if (!model.valid) continue
+
                 do {
                     if (model.elements.length != 1) break
 
