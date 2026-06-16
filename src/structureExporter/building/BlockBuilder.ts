@@ -256,6 +256,8 @@ export class BlockBuilder {
             uvValues.push(..._getUVs(texture, faceInfo, face, rotation, this.atlas))
         }
 
+        if (vertexValues.length == 0) return null
+
         const vertices = this.document.createAccessor()
             .setType("VEC3")
             .setArray(new Float32Array(vertexValues))
