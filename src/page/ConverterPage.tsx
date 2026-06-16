@@ -249,7 +249,7 @@ export const ConverterPage = (defineComponent({
             const modelProvider = new ModelProvider(resourceProvider)
             modelProvider.assetLoadingConcurrency = 5
 
-            await modelProvider.prepareAssets(structure.getAssets())
+            await modelProvider.prepareAssets([...structure.getAssets()])
 
             const atlas = await TextureAtlas.build(platform, document, modelProvider)
             atlasFile.value = atlas.content

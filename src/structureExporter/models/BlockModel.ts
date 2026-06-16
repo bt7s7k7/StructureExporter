@@ -6,7 +6,8 @@ import { BlockModelElement } from "./BlockModelElement"
 
 
 export class BlockModel {
-    protected readonly _textureVariables = new Map<string, TextureResource | string>()
+    public loaded = false
+
     public readonly rotationQuaternion: vec4 | null = this.rotation == null ? null : (
         this.rotation
             .mul1(Math.PI / 180)
@@ -15,7 +16,7 @@ export class BlockModel {
     )
 
     public withOptions(rotation: Vector3 | null, lockUv: boolean) {
-        return new BlockModel(this.name, this.elements, rotation, lockUv).copyTextureVariablesFrom(this)
+        return new BlockModel(this.name, this.elements, rotation, lockUv, this.valid, this._textureVariables)
     }
 
     public setTextureVariable(key: string, value: TextureResource | string) {
@@ -46,17 +47,12 @@ export class BlockModel {
         return resolvedTexture
     }
 
-    public copyTextureVariablesFrom(from: BlockModel) {
-        for (const [key, value] of from._textureVariables) {
-            this.setTextureVariable(key, value)
-        }
-        return this
-    }
-
     constructor(
         public readonly name: string,
         public readonly elements: BlockModelElement[],
         public readonly rotation: Vector3 | null,
         public readonly lockUv: boolean,
+        public readonly valid: boolean,
+        protected readonly _textureVariables = new Map<string, TextureResource | string>(),
     ) { }
 }

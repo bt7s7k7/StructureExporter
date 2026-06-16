@@ -1,4 +1,4 @@
-import { asyncConcurrency } from "../../comTypes/util"
+import { asyncConcurrency, unreachable } from "../../comTypes/util"
 import { BlockState } from "../building/BlockState"
 import { BlockStateModelReference, Face } from "../minecraft/assets"
 import { normaliseResourceId, ResourceProvider } from "../resources/ResourceProvider"
@@ -57,7 +57,7 @@ export class ModelProvider {
         element.setFaceInfo(face, info)
     }
 
-    protected async _loadModel(id: string, model: BlockModel) {
+    protected async _loadModelContents(id: string, model: BlockModel) {
         const definition = await this.resourceProvider.loadModelDefinition(id)
         if (definition == null) {
             warn(`Sources do not include model file ${id}`)
@@ -65,7 +65,7 @@ export class ModelProvider {
         }
 
         if (definition.parent) {
-            await this._loadModel(normaliseResourceId(definition.parent), model)
+            await this._loadModelContents(normaliseResourceId(definition.parent), model)
         }
 
         if (definition.textures) {
@@ -145,22 +145,23 @@ export class ModelProvider {
 
     public assetLoadingConcurrency = 5
 
-    public async prepareAssets(palette: Iterable<BlockState>) {
+    public async prepareAssets(palette: BlockState[]) {
         using stopwatch = new Stopwatch()
-        stopwatch.start("prepareAssets/load")
+        stopwatch.start("prepareAssets/blockStates")
 
         const queue = asyncConcurrency<any>(this.assetLoadingConcurrency)
 
-        for (const state of palette) {
-            if (this._blockRenderingInfo.has(state.block)) continue
+        const requiredBlocks = new Set(palette.map(v => v.block))
+        for (const block of requiredBlocks) {
+            if (this._blockRenderingInfo.has(block)) unreachable()
             const info = new BlockRenderingInfo(false)
-            this._blockRenderingInfo.set(state.block, info)
+            this._blockRenderingInfo.set(block, info)
 
             queue.push(async () => {
-                const definition = await this.resourceProvider.loadBlockStateDefinition(state.block)
+                const definition = await this.resourceProvider.loadBlockStateDefinition(block)
                 if (definition == null) {
-                    warn(`Sources do not include block state file ${state.block}`)
-                    const model = await this._resolveModelReference(state.block, null)
+                    warn(`Sources do not include block state file ${block}`)
+                    const model = this._resolveModelReference(block, null)
                     info.registerModel(BlockStatePredicate.fromString(""), model)
                     return
                 }
@@ -170,26 +171,53 @@ export class ModelProvider {
 
                 if (!isMultipart) {
                     if (definition.variants == null) {
-                        warn(`There are no variants or multipart defined in block state file for ${state.block}`)
+                        warn(`There are no variants or multipart defined in block state file for ${block}`)
                         return
                     }
 
                     for (const [key, variant] of Object.entries(definition.variants)) {
-                        info.registerModel(BlockStatePredicate.fromString(key), await this._resolveModelReference(state.block, variant))
+                        info.registerModel(BlockStatePredicate.fromString(key), this._resolveModelReference(block, variant))
                     }
                 } else {
                     for (const part of definition.multipart!) {
-                        const partState = new BlockState(state.block)
+                        const partState = new BlockState(block)
                         if (part.when) {
                             for (const [key, value] of Object.entries(part.when)) {
                                 partState.setProperty(key, value)
                             }
                         }
 
-                        info.registerModel(BlockStatePredicate.fromCondition(part.when), await this._resolveModelReference(state.block, part.apply))
+                        info.registerModel(BlockStatePredicate.fromCondition(part.when), this._resolveModelReference(block, part.apply))
                     }
                 }
             })
+        }
+
+        await queue.join()
+
+        stopwatch.start("prepareAssets/blockModels")
+
+        const requiredModels = new Map<string, BlockModel>()
+        for (const state of palette) {
+            const info = this._blockRenderingInfo.get(state.block) ?? unreachable()
+            if (info.isMultipart) {
+                for (const model of info.findModels(state)) {
+                    requiredModels.set(model.name, model)
+                }
+            } else {
+                const model = info.findModel(state)
+                if (model == null) {
+                    warn(`Palette contains invalid block state: ${state}`)
+                    continue
+                }
+
+                requiredModels.set(model.name, model)
+            }
+        }
+
+        for (const [id, model] of requiredModels) {
+            if (!model.valid) continue
+            queue.push(() => this._loadModelContents(id, model))
         }
 
         await queue.join()
@@ -243,7 +271,7 @@ export class ModelProvider {
 
     protected _fallbackModel: BlockModel | null = null
 
-    protected async _resolveModelReference(owner: string, modelRef: BlockStateModelReference | BlockStateModelReference[] | null) {
+    protected _resolveModelReference(owner: string, modelRef: BlockStateModelReference | BlockStateModelReference[] | null) {
         if (Array.isArray(modelRef)) {
             modelRef = modelRef[0]
         }
@@ -254,7 +282,7 @@ export class ModelProvider {
             if (this._fallbackModel) {
                 model = this._fallbackModel
             } else {
-                model = new BlockModel("missing", [CubicElement.getFallback()], null, false)
+                model = new BlockModel("missing", [CubicElement.getFallback()], null, false, false)
                 this._modelCache.set(model.name, model)
                 this._fallbackModel = model
             }
@@ -263,8 +291,7 @@ export class ModelProvider {
 
             model = this._modelCache.get(modelId)
             if (model == null) {
-                model = new BlockModel(modelId, [], null, false)
-                await this._loadModel(modelId, model)
+                model = new BlockModel(modelId, [], null, false, true)
                 this._modelCache.set(modelId, model)
             }
         }
