@@ -187,6 +187,8 @@ function _getUVs(texture: TextureResource, face: FaceInfo, direction: number, ro
 }
 
 export class BlockBuilder {
+    public cullEdges = false
+
     protected _meshCache = new Map<string, Mesh>()
     protected _buffer = this.document.createBuffer()
 
@@ -375,7 +377,11 @@ export class BlockBuilder {
                 const neighbourPosition = pos.add(offset)
 
                 const neighbour = context.getBlock(neighbourPosition)
-                if (neighbour == null) continue
+                if (neighbour == null) {
+                    // This face neighbours the edge of the structure, we cull only if the user has configured it
+                    if (this.cullEdges) faceMask ^= face
+                    continue
+                }
 
                 const neighbourBlock = context.palette[neighbour.state].block
                 const neighbourInfo = this.modelProvider.getBlockRenderingInfo(neighbourBlock)

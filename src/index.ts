@@ -64,8 +64,9 @@ const cli = new Cli("structureExporter")
             simplify: Type.boolean.as(Type.nullable),
             dryRun: Type.boolean.as(Type.nullable),
             dumpAtlas: Type.boolean.as(Type.nullable),
+            cullEdges: Type.boolean.as(Type.nullable),
         },
-        async callback(input, output, { resourcePath, simplify, dryRun, dumpAtlas }) {
+        async callback(input, output, { resourcePath, simplify, dryRun, dumpAtlas, cullEdges }) {
             const resourcePacks = await ResourcePackManager.createOrOpen(_PLATFORM, resourcePath)
             const resourceProvider = new ResourceProvider(_PLATFORM, resourcePacks)
 
@@ -95,6 +96,7 @@ const cli = new Cli("structureExporter")
             if (dryRun) return
 
             const blockBuilder = new BlockBuilder(document, modelProvider, atlas)
+            blockBuilder.cullEdges = cullEdges ?? false
             blockBuilder.buildStructure(structure, scene)
 
             const stopwatch = new Stopwatch().start("simplify")
