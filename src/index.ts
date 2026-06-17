@@ -189,6 +189,12 @@ const cli = new Cli("structureExporter")
             }
         },
     })
+    .addOption({
+        name: "help", desc: "Prints a help message",
+        async callback() {
+            cli.printHelp()
+        },
+    })
 
 await cli.execute(process.argv.slice(2))
 
