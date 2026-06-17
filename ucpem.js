@@ -1,7 +1,7 @@
 /// <reference path="./.vscode/config.d.ts" />
 
 const { readFile, writeFile } = require("node:fs/promises")
-const { project, github, run, join, constants } = require("ucpem")
+const { project, github, run, join, constants, ucpem } = require("ucpem")
 
 project.prefix("src").res("structureExporter",
     github("bt7s7k7/MiniML").res("cli"),
@@ -29,3 +29,9 @@ project.script("plugin-api", async () => {
     await run("yarn oxlint --fix plugin-api.d.ts")
     await run("yarn oxlint --fix plugin-api.d.ts")
 })
+
+project.script("export-structure", async (args) => {
+    await run("ucpem run builder build")
+    process.argv = [...process.argv.slice(0, 2), ...args]
+    await import(join(constants.projectPath, "./build/index.mjs"))
+}, { desc: "Executes the structure exporter CLI with the provided arguments", argc: NaN })
