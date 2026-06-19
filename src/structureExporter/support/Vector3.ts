@@ -111,10 +111,12 @@ export class Vector3 {
 
     public get magnitude() { return Math.hypot(this.x, this.y, this.z) }
     public get normalized() { return this.div1(this.magnitude) }
+    public get volume() { return this.x * this.y * this.z }
     public get isZero() { return this.x == 0 && this.y == 0 && this.z == 0 }
 
     public toArray(): [number, number, number] { return [this.x, this.y, this.z] }
     public toMapKey() { return `${this.x},${this.y},${this.z}` }
+    public toString() { return `(${this.x}, ${this.y}, ${this.z})` }
 
     public eulerToQuaternionZYX() {
         const roll = this.x

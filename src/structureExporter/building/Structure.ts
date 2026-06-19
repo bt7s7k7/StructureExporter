@@ -26,26 +26,83 @@ const X_OFFSET = PACKED_Y_LENGTH + PACKED_Z_LENGTH
 
 export class Structure {
     public readonly substructures: Structure[] = []
+    protected readonly _blocks = new Uint8Array(this.size.volume)
+    protected readonly _palette: BlockState[] = [new BlockState("minecraft:structure_void")]
+    protected readonly _paletteRefCounts: number[] = [this._blocks.length]
+    protected readonly _paletteIndex = new Map<number, number>()
 
-    protected readonly _blockLookup = new Map<string, NbtBlock>()
+    public setBlockState(pos: Vector3, blockState: BlockState) {
+        if (
+            pos.x < 0 || pos.x >= this.size.x
+            || pos.y < 0 || pos.y >= this.size.y
+            || pos.z < 0 || pos.z >= this.size.z
+        ) {
+            throw new RangeError(`Position ${pos} is outside of structure size ${this.size}`)
+        }
 
-    public getBlock(pos: Vector3) {
-        return this._blockLookup.get(pos.toMapKey())
+        const index = pos.x + pos.y * this.size.x + pos.z * this.size.x * this.size.y
+
+        const prevId = this._blocks[index]
+        const prevState = this._palette[prevId] ?? unreachable()
+
+        if (prevState.uid == blockState.uid) return
+
+        let paletteId = this._paletteIndex.get(blockState.uid)
+        if (paletteId == null) {
+            paletteId = this._palette.length
+            this._palette.push(blockState)
+            this._paletteRefCounts.push(0)
+            this._paletteIndex.set(blockState.uid, paletteId)
+        }
+
+        this._paletteRefCounts[prevId]--
+        this._paletteRefCounts[paletteId]++
+
+        this._blocks[index] = paletteId
+    }
+
+    public getBlockState(pos: Vector3) {
+        if (
+            pos.x < 0 || pos.x >= this.size.x
+            || pos.y < 0 || pos.y >= this.size.y
+            || pos.z < 0 || pos.z >= this.size.z
+        ) {
+            return null
+        }
+
+        const index = pos.x + pos.y * this.size.x + pos.z * this.size.x * this.size.y
+
+        return this._palette[this._blocks[index]]
     }
 
     public *getAssets(): Generator<BlockState> {
-        yield* this.palette
+        for (let i = 0; i < this._paletteRefCounts.length; i++) {
+            const count = this._paletteRefCounts[i]
+            if (count > 0) yield this._palette[i]
+        }
 
         for (const substructure of this.substructures) {
             yield* substructure.getAssets()
         }
     }
 
+    public *getBlocks() {
+        for (let z = 0; z < this.size.z; z++) {
+            for (let y = 0; y < this.size.y; y++) {
+                for (let x = 0; x < this.size.x; x++) {
+                    const index = x + y * this.size.x + z * this.size.x * this.size.y
+                    const id = this._blocks[index]
+                    const state = this._palette[id]
+                    yield [new Vector3(x, y, z), state] as const
+                }
+            }
+        }
+    }
+
     protected constructor(
         public readonly position: Vector3,
         public readonly rotation: Vector3,
-        public readonly palette: BlockState[],
-        public readonly blocks: NbtBlock[],
+        public readonly size: Vector3,
     ) { }
 
     public static fromNbt(plugins: PluginManager, data: NbtStructure, position = Vector3.ZERO, rotation = Vector3.ZERO) {
@@ -98,11 +155,13 @@ export class Structure {
             blocks = blocks as NbtBlock[]
         }
 
-        const structure = new Structure(position, rotation, palette, blocks)
+        const size = Vector3.fromArray(data.size)
+
+        const structure = new Structure(position, rotation, size)
 
         for (const block of blocks) {
             const pos = Vector3.fromArray(block.pos)
-            structure._blockLookup.set(pos.toMapKey(), block)
+            structure.setBlockState(pos, palette[block.state])
         }
 
         if (data.entities) {

@@ -194,9 +194,7 @@ export class BlockBuilder {
 
     public buildStructure(structure: Structure, root: Node | Scene) {
         const stopwatch = new Stopwatch().start("buildStructure")
-        for (const block of structure.blocks) {
-            const pos = Vector3.fromArray(block.pos)
-            const state = structure.palette[block.state]
+        for (const [pos, state] of structure.getBlocks()) {
             const node = this.document.createNode(`(${pos.toMapKey()})${state.toString()}`)
                 .setTranslation(pos.toArray())
 
@@ -376,14 +374,15 @@ export class BlockBuilder {
             for (const [face, offset] of _NEIGHBOURS) {
                 const neighbourPosition = pos.add(offset)
 
-                const neighbour = context.getBlock(neighbourPosition)
+                const neighbour = context.getBlockState(neighbourPosition)
                 if (neighbour == null) {
                     // This face neighbours the edge of the structure, we cull only if the user has configured it
                     if (this.cullEdges) faceMask ^= face
                     continue
                 }
 
-                const neighbourBlock = context.palette[neighbour.state].block
+                const neighbourBlock = neighbour.block
+
                 const neighbourInfo = this.modelProvider.getBlockRenderingInfo(neighbourBlock)
                 if (neighbourInfo == null) continue
 
