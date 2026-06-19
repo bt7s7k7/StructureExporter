@@ -189,7 +189,7 @@ export class Structure {
             }
         }
 
-        return plugins.executeHook("onLoadStructure", structure)
+        return plugins.executeHook("onLoadStructure", structure, data)
     }
 
     public static async load(plugins: PluginManager, buffer: Buffer | ArrayBuffer) {

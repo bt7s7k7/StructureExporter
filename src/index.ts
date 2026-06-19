@@ -152,6 +152,8 @@ const cli = new Cli("structureExporter")
             blockBuilder.cullEdges = cullEdges ?? false
             blockBuilder.buildStructure(structure, scene)
 
+            await plugins.executeHandlerAsync("onBuild", document, scene)
+
             const stopwatch = new Stopwatch().start("simplify")
             if (simplify) {
                 await document.transform(
@@ -165,6 +167,8 @@ const cli = new Cli("structureExporter")
                 )
             }
             stopwatch.end()
+
+            await plugins.executeHandlerAsync("onBeforeWrite", document, scene)
 
             await writeFile(output, await new NodeIO().writeBinary(document))
         },

@@ -1,9 +1,10 @@
+import { Document, Scene } from "@gltf-transform/core"
 import { Structure } from "../building/Structure"
 import { Platform } from "../Platform"
-import { BlockStateDefinition, Drawer, ModelDefinition, ModelProvider, ResourceProvider, TextureResource } from "./pluginApi"
+import { BlockStateDefinition, Drawer, ModelDefinition, ModelProvider, NbtStructure, ResourceProvider, TextureResource } from "./pluginApi"
 
 export interface PluginHooks {
-    onLoadStructure(structure: Structure): Structure | void
+    onLoadStructure(structure: Structure, data: NbtStructure): Structure | void
     onBeforeLoadBlockStateDefinition(value: BlockStateDefinition | null, id: string): Promise<BlockStateDefinition | null>
     onLoadBlockStateDefinition(value: BlockStateDefinition, id: string): Promise<BlockStateDefinition | void>
     onBeforeLoadModelDefinition(value: ModelDefinition | null, id: string): Promise<ModelDefinition | null>
@@ -16,6 +17,8 @@ export interface PluginHooks {
 export interface PluginEvents {
     onInit(platform: Platform, input: string, output: string): Promise<void>
     onReady(structure: Structure, resourceProvider: ResourceProvider, modelProvider: ModelProvider): Promise<void>
+    onBuild(document: Document, scene: Scene): Promise<void>
+    onBeforeWrite(document: Document, scene: Scene): Promise<void>
 }
 
 export interface PluginOptions extends Partial<PluginHooks>, Partial<PluginEvents> {
@@ -41,6 +44,8 @@ const _NOOP_PLUGIN: Plugin = {
     onLoadModelDefinition: null,
     onLoadTexture: null,
     onLoadTextureContent: null,
+    onBuild: null,
+    onBeforeWrite: null,
     [_RESOLVED]: true,
 }
 
