@@ -137,9 +137,11 @@ const cli = new Cli("structureExporter")
 
             const modelProvider = new ModelProvider(resourceProvider)
 
-            await plugins.executeHandlerAsync("onReady", structure, resourceProvider, modelProvider)
+            await plugins.executeHandlerAsync("onBeforePrepareAssets", structure, resourceProvider, modelProvider)
 
             await modelProvider.prepareAssets([...structure.getAssets()])
+
+            await plugins.executeHandlerAsync("onPrepareAssets", structure, resourceProvider, modelProvider)
 
             const atlas = await TextureAtlas.build(_PLATFORM, document, modelProvider)
             if (dumpAtlas) {

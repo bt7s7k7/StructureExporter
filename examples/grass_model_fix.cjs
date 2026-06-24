@@ -10,7 +10,7 @@ const tint = Color.fromHex("#82cf4e")
 
 module.exports = declarePlugin({
     name: "grass_model_fix",
-    async onReady(...args) {
+    async onBeforePrepareAssets(...args) {
         resourceProvider = args[1]
     },
     async onLoadTextureContent(value, id) {
