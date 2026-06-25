@@ -5,6 +5,7 @@ import { decodeString, Platform } from "../Platform"
 import { PluginManager } from "../plugins/PluginManager"
 import { Stopwatch } from "../support/Stopwatch"
 import { TextureResource } from "../textures/TextureResource"
+import { memoizeMethods } from "./memoMethods"
 import { ResourcePackManager } from "./ResourcePackManager"
 
 export function normaliseResourceId(id: string) {
@@ -105,20 +106,10 @@ export class ResourceProvider {
         public readonly platform: Platform,
         public readonly resourcePacks: ResourcePackManager,
     ) {
-        for (const key of [
+        memoizeMethods(this, [
             "loadBlockStateDefinition",
             "loadModelDefinition",
             "loadTexture",
-        ] as const) {
-            const method = this[key].bind(this)
-            const cache = new Map<string, Promise<any>>()
-
-            this[key] = function (id) {
-                if (cache.has(id)) return cache.get(id)!
-                const promise = method(id)
-                cache.set(id, promise)
-                return promise
-            }
-        }
+        ])
     }
 }

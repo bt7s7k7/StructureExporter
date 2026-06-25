@@ -26,6 +26,8 @@ export class Stopwatch {
     protected static readonly _times = new Map<string, number>()
     protected static readonly _counters = new Map<string, number>()
     public static dump() {
+        if (this._times.size == 0) return
+
         debug(`[Performance] ${[...this._times].map(([key, value]) => {
             const count = this._counters.get(key)!
             return `${key}${count <= 1 ? "" : `*${count}`}: ${value.toFixed(2)}ms`

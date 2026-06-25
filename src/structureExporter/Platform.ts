@@ -1,5 +1,5 @@
 import { Drawer } from "../drawer/Drawer"
-import { Plugin } from "./plugins/Plugin"
+import { Plugin, PluginOptions } from "./plugins/Plugin"
 
 export function decodeString(source: Uint8Array) {
     if (source.constructor.name == "Buffer") {
@@ -17,5 +17,5 @@ export abstract class Platform {
     public abstract write(path: string, content: string | Uint8Array): Promise<void>
     public abstract loadImage(data: Uint8Array): Promise<Drawer.ImageSource & { width: number, height: number }>
     public abstract saveImage(image: Drawer): Promise<Uint8Array>
-    public abstract loadPlugin(path: string): Promise<Plugin>
+    public abstract loadPlugin(path: string): Promise<() => (Plugin | PluginOptions)>
 }

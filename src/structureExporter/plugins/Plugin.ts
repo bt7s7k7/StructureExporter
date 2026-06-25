@@ -1,6 +1,8 @@
-import { Document, Scene } from "@gltf-transform/core"
+import { Document, Scene, Transform } from "@gltf-transform/core"
+import { BlockBuilder } from "../building/BlockBuilder"
 import { Structure } from "../building/Structure"
 import { Platform } from "../Platform"
+import { AtlasLayout, TextureAtlas } from "../textures/TextureAtlas"
 import { BlockStateDefinition, Drawer, ModelDefinition, ModelProvider, NbtStructure, ResourceProvider, TextureResource } from "./pluginApi"
 
 export interface PluginHooks {
@@ -30,10 +32,16 @@ export interface PluginEvents {
     onBeforePrepareAssets(structure: Structure, resourceProvider: ResourceProvider, modelProvider: ModelProvider): Promise<void>
     /** Emitted after all assets have been loaded. You can modify the loaded assets. */
     onPrepareAssets(structure: Structure, resourceProvider: ResourceProvider, modelProvider: ModelProvider): Promise<void>
+    /** Emitted before a 3D model has been built from structures but all assets are ready. */
+    onBeforeBuild(blockBuilder: BlockBuilder, structure: Structure, scene: Scene): Promise<void>
     /** Emitted after a 3D model has been built from structures, but before optimisation. */
     onBuild(document: Document, scene: Scene): Promise<void>
+    /** Emitted after the 3D has been built, but before optimisation. You may change the document function list. */
+    onBeforeOptimisation(document: Document, transforms: Transform[]): Promise<void>
     /** Emitted before the 3D model is written to disk, but after optimisation. */
     onBeforeWrite(document: Document, scene: Scene): Promise<void>
+    /** Emitted after an atlas was composed. The `value` can be modified, but should not be resized because it may misalign the UVs. Modifying the `atlasLayout` has no effect. */
+    onTextureAtlasBuilt(value: TextureAtlas, atlasLayout: AtlasLayout<TextureResource>): Promise<void>
 }
 
 export interface PluginOptions extends Partial<PluginHooks>, Partial<PluginEvents> {
@@ -60,12 +68,15 @@ const _NOOP_PLUGIN: Plugin = {
     onLoadModelDefinition: null,
     onLoadTexture: null,
     onLoadTextureContent: null,
+    onBeforeBuild: null,
     onBuild: null,
     onBeforeWrite: null,
+    onTextureAtlasBuilt: null,
+    onBeforeOptimisation: null,
     [_RESOLVED]: true,
 }
 
-export function declarePlugin(plugin: PluginOptions): Plugin {
+export function declarePlugin(plugin: PluginOptions | Plugin): Plugin {
     if (plugin == null || typeof plugin != "object") throw new TypeError("Expected object")
 
     if (_RESOLVED in plugin) return plugin as any

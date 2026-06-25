@@ -3,7 +3,7 @@ import { InjectionKey } from "vue"
 import { fromBase64Binary } from "../comTypes/util"
 import { Drawer } from "../drawer/Drawer"
 import { Platform } from "../structureExporter/Platform"
-import { Plugin } from "../structureExporter/plugins/Plugin"
+import { Plugin, PluginOptions } from "../structureExporter/plugins/Plugin"
 import { LOGGER } from "../structureExporter/support/log"
 import { Variant } from "../vue3gui/variants"
 
@@ -195,7 +195,7 @@ export class BrowserPlatform extends Platform {
         return fromBase64Binary(dataUrl.slice("data:image/png;base64,".length))
     }
 
-    public override async loadPlugin(path: string): Promise<Plugin> {
+    public override async loadPlugin(path: string): Promise<() => (Plugin | PluginOptions)> {
         throw new Error("Plugins are not supported in this environment")
     }
 

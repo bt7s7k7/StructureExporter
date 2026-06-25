@@ -2,14 +2,15 @@ import { Document, Material, Texture, TextureInfo } from "@gltf-transform/core"
 import { ModelProvider } from "../models/ModelProvider"
 // @ts-ignore
 import layout from "layout"
-import { unreachable } from "../../comTypes/util"
+import { runString, unreachable } from "../../comTypes/util"
 import { Drawer } from "../../drawer/Drawer"
 import { Point } from "../../drawer/Point"
 import { Platform } from "../Platform"
 import { Stopwatch } from "../support/Stopwatch"
 import { TextureResource } from "./TextureResource"
+import { PluginManager } from "../plugins/PluginManager"
 
-interface AtlasLayout<T> {
+export interface AtlasLayout<T> {
     height: number
     width: number
     items: {
@@ -63,7 +64,7 @@ export class TextureAtlas {
         public readonly content: Uint8Array,
     ) { }
 
-    public static async build(platform: Platform, document: Document, models: ModelProvider) {
+    public static async build(platform: Platform, document: Document, models: ModelProvider, plugins: PluginManager) {
         const textures = [...new Set(models.listUsedTextures())]
         const atlasBuilder = layout("binary-tree")
 
@@ -94,6 +95,8 @@ export class TextureAtlas {
             .setImage(atlasData)
             .setMimeType("image/png")
 
-        return new TextureAtlas(textures, document, atlasLayout.width, atlasLayout.height, texture, atlasData)
+        const result = new TextureAtlas(textures, document, atlasLayout.width, atlasLayout.height, texture, atlasData)
+        await plugins.executeHandlerAsync("onTextureAtlasBuilt", result, atlasLayout)
+        return result
     }
 }

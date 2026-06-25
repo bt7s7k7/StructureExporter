@@ -254,7 +254,7 @@ export const ConverterPage = (defineComponent({
 
             await modelProvider.prepareAssets([...structure.getAssets()])
 
-            const atlas = await TextureAtlas.build(platform, document, modelProvider)
+            const atlas = await TextureAtlas.build(platform, document, modelProvider, plugins)
             atlasFile.value = atlas.content
             show.value = "atlas"
             void platform.write("atlas.png", atlas.content)

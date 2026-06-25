@@ -1,29 +1,25 @@
-import { Document, NodeIO, PropertyType } from "@gltf-transform/core"
-import { dedup, flatten, join as join_2 } from "@gltf-transform/functions"
+import { NodeIO } from "@gltf-transform/core"
+import { flatten, join as join_2 } from "@gltf-transform/functions"
 import { mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises"
 import { createRequire, registerHooks } from "node:module"
-import { basename, dirname, extname, join } from "node:path"
+import { basename, dirname, extname, join, resolve } from "node:path"
 import { Canvas, Image, ImageData } from "skia-canvas"
 import { Cli } from "./cli/Cli"
+import { unzip } from "./comTypes/util"
 import { Drawer } from "./drawer/Drawer"
 import { Type } from "./struct/Type"
-import { BlockBuilder } from "./structureExporter/building/BlockBuilder"
-import { Structure } from "./structureExporter/building/Structure"
-import { ModelProvider } from "./structureExporter/models/ModelProvider"
 import { Platform } from "./structureExporter/Platform"
-import { Plugin } from "./structureExporter/plugins/Plugin"
+import { declarePlugin, Plugin, PluginOptions } from "./structureExporter/plugins/Plugin"
 import * as pluginApi from "./structureExporter/plugins/pluginApi"
-import { PluginManager } from "./structureExporter/plugins/PluginManager"
 import { ResourcePackManager } from "./structureExporter/resources/ResourcePackManager"
-import { ResourceProvider } from "./structureExporter/resources/ResourceProvider"
-import { info } from "./structureExporter/support/log"
+import { StructureExportPipeline } from "./structureExporter/StructureExportPipeline"
+import { error, info } from "./structureExporter/support/log"
 import { Stopwatch } from "./structureExporter/support/Stopwatch"
-import { TextureAtlas } from "./structureExporter/textures/TextureAtlas"
 
 // @ts-ignore
 globalThis.__structureExporter_pluginApi = pluginApi
 
-const _PLATFORM = new class NodePlatform extends Platform {
+export const _PLATFORM = new class NodePlatform extends Platform {
     public override async mkdir(path: string): Promise<void> {
         await mkdir(path, { recursive: true })
     }
@@ -55,7 +51,12 @@ const _PLATFORM = new class NodePlatform extends Platform {
         return await canvas.toBuffer("png")
     }
 
+    public _pluginApiInitialized = false
     public initPluginApi() {
+        // Prevent duplicate initialisation in batch mode
+        if (this._pluginApiInitialized) return
+        this._pluginApiInitialized = true
+
         registerHooks({
             resolve(specifier, context, nextResolve) {
                 if (specifier == "structure-exporter") {
@@ -81,14 +82,23 @@ const _PLATFORM = new class NodePlatform extends Platform {
         })
     }
 
-    public override async loadPlugin(path: string): Promise<Plugin> {
-        const require = createRequire(path)
-        return require(path)
+    public override async loadPlugin(path: string): Promise<() => (Plugin | PluginOptions)> {
+        const require = createRequire(import.meta.filename)
+        let result = require(path)
+
+        if (typeof result != "function") {
+            error(`Plugin at "${path}" does not export a plugin factory. The exported value will be wrapped, but problems may occur with batch processing.`)
+            result = () => result
+        }
+
+        return result
     }
 }
 
 Drawer.CONTEXT_FACTORY = () => new Canvas().getContext("2d") as any
 Object.assign(globalThis, { ImageData })
+
+let pipeline: StructureExportPipeline
 
 const cli = new Cli("structureExporter")
     .addOption({
@@ -106,15 +116,7 @@ const cli = new Cli("structureExporter")
             plugin: Type.string.as(Type.array),
         },
         async callback(input, output, { resourcePath, simplify, dryRun, dumpAtlas, cullEdges, plugin: pluginPaths }) {
-            const plugins = new PluginManager(_PLATFORM)
-            if (pluginPaths.length > 0) {
-                _PLATFORM.initPluginApi()
-
-                for (let path of pluginPaths) {
-                    path = join(process.cwd(), path)
-                    await plugins.loadPlugin(path)
-                }
-            }
+            pipeline ??= new StructureExportPipeline(_PLATFORM)
 
             if (output == null) {
                 output = join(dirname(input), basename(input, extname(input)) + ".glb")
@@ -122,56 +124,47 @@ const cli = new Cli("structureExporter")
                 output += basename(input, extname(input)) + ".glb"
             }
 
-            await plugins.executeHandlerAsync("onInit", _PLATFORM, input, output)
-
-            const resourcePacks = await ResourcePackManager.createOrOpen(_PLATFORM, resourcePath)
-            const resourceProvider = new ResourceProvider(plugins, _PLATFORM, resourcePacks)
-
             info(`Converting "${input}" -> "${output}"`)
             await _PLATFORM.mkdir(dirname(output))
 
-            const inputData = await readFile(input)
-            const structure = await Structure.load(plugins, inputData)
-            const document = new Document()
-            const scene = document.createScene()
+            if (pluginPaths.length > 0) _PLATFORM.initPluginApi()
 
-            const modelProvider = new ModelProvider(resourceProvider)
+            const plugins: (string | (() => Plugin))[] = [
+                ...pluginPaths.map(v => resolve(v)),
+            ]
 
-            await plugins.executeHandlerAsync("onBeforePrepareAssets", structure, resourceProvider, modelProvider)
-
-            await modelProvider.prepareAssets([...structure.getAssets()])
-
-            await plugins.executeHandlerAsync("onPrepareAssets", structure, resourceProvider, modelProvider)
-
-            const atlas = await TextureAtlas.build(_PLATFORM, document, modelProvider)
             if (dumpAtlas) {
-                await writeFile(join(dirname(output), "atlas.png"), atlas.content)
+                plugins.unshift(() => declarePlugin({
+                    name: "builtin:dump_atlas",
+                    async onTextureAtlasBuilt(value, atlasLayout) {
+                        await writeFile(join(dirname(output), "atlas.png"), value.content)
+                    },
+                }))
             }
 
-            if (dryRun) return
+            if (cullEdges) {
+                plugins.unshift(() => declarePlugin({
+                    name: "builtin:cull_edges",
+                    async onBeforeBuild(blockBuilder, structure, scene) {
+                        blockBuilder.cullEdges = true
+                    },
+                }))
+            }
 
-            const blockBuilder = new BlockBuilder(document, modelProvider, atlas)
-            blockBuilder.cullEdges = cullEdges ?? false
-            blockBuilder.buildStructure(structure, scene)
-
-            await plugins.executeHandlerAsync("onBuild", document, scene)
-
-            const stopwatch = new Stopwatch().start("simplify")
             if (simplify) {
-                await document.transform(
-                    dedup({ propertyTypes: [PropertyType.ACCESSOR] }),
-                    flatten(),
-                    join_2(),
-                )
-            } else {
-                await document.transform(
-                    dedup({ propertyTypes: [PropertyType.ACCESSOR] }),
-                )
+                plugins.unshift(() => declarePlugin({
+                    name: "builtin:simplify",
+                    async onBeforeOptimisation(document, transforms) {
+                        transforms.push(
+                            flatten(),
+                            join_2(),
+                        )
+                    },
+                }))
             }
-            stopwatch.end()
 
-            await plugins.executeHandlerAsync("onBeforeWrite", document, scene)
-
+            const document = await pipeline.execute(input, output, resourcePath, plugins, dryRun ? "assets" : "full")
+            if (document == null) return
             await writeFile(output, await new NodeIO().writeBinary(document))
         },
     })
@@ -202,7 +195,18 @@ const cli = new Cli("structureExporter")
         },
     })
 
-await cli.execute(process.argv.slice(2))
+const args = process.argv.slice(2)
+if (args.includes("--")) {
+    args.unshift("--")
+    const batches = unzip(args, v => v == "--")
+    for (const [, batchArgs] of batches) {
+        await cli.execute(batchArgs)
+        Stopwatch.dump()
+        Stopwatch.clear()
+    }
+} else {
+    await cli.execute(args)
+}
 
 process.on("beforeExit", (code) => {
     if (code == 0) Stopwatch.dump()

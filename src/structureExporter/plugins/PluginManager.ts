@@ -1,17 +1,21 @@
 import { ShiftTuple } from "../../comTypes/types"
 import { Platform } from "../Platform"
-import { declarePlugin, Plugin, PluginEvents, PluginHooks, PluginOptions } from "./Plugin"
+import { declarePlugin, Plugin, PluginEvents, PluginHooks } from "./Plugin"
 
 export class PluginManager {
     public readonly plugins: Plugin[] = []
 
     public async loadPlugin(path: string) {
         try {
-            const data = (await this.platform.loadPlugin(path)) as PluginOptions
-            this.plugins.push(declarePlugin(data))
+            const data = (await this.platform.loadPlugin(path))
+            this.plugins.push(declarePlugin(data()))
         } catch (err) {
             throw new Error(`Failed to load plugin "${path}"`, { cause: err })
         }
+    }
+
+    public addPlugin(plugin: Plugin) {
+        this.plugins.push(plugin)
     }
 
     public executeHook<K extends keyof PluginHooks>(name: K, target: Parameters<PluginHooks[K]>[0], ...args: ShiftTuple<Parameters<PluginHooks[K]>>) {

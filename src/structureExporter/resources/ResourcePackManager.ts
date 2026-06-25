@@ -2,6 +2,7 @@ import { join, resolve } from "node:path"
 import { insertSorted } from "../../comTypes/util"
 import { Platform } from "../Platform"
 import { ResourcePack } from "./ResourcePack"
+import { memoizeMethods } from "./memoMethods"
 
 const _COMPARATOR = (a: ResourcePack, b: ResourcePack) => a.name.localeCompare(b.name, "en")
 
@@ -41,7 +42,9 @@ export class ResourcePackManager {
         public readonly platform: Platform,
         public readonly root: string,
         public readonly packs: ResourcePack[],
-    ) { }
+    ) {
+        memoizeMethods(this, ["loadResource"])
+    }
 
     public static async createOrOpen(platform: Platform, path: string | null | undefined) {
         path ??= resolve("resources")

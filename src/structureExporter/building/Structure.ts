@@ -192,7 +192,7 @@ export class Structure {
         return plugins.executeHook("onLoadStructure", structure, data)
     }
 
-    public static async load(plugins: PluginManager, buffer: Buffer | ArrayBuffer) {
+    public static async load(plugins: PluginManager, buffer: ArrayBuffer) {
         using _ = new Stopwatch().start("Structure.load")
         const { parsed } = await parse(buffer)
         const data = simplify(parsed) as NbtStructure
