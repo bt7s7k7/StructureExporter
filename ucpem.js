@@ -16,20 +16,6 @@ project.script("dev", async () => {
     void run("yarn tsc --noEmit --watch --incremental --preserveWatchOutput --pretty")
 })
 
-project.script("plugin-api", async () => {
-    let definition = await readFile(join(constants.projectPath, "plugin-api.d.ts"), "utf-8")
-
-    definition = definition
-        .trim()
-        .replace(/declare /g, "")
-        .replace(/^/, `declare module "structure-exporter" {\n`)
-        + "\n}\n"
-
-    await writeFile(join(constants.projectPath, "plugin-api.d.ts"), definition)
-    await run("yarn oxlint --fix plugin-api.d.ts")
-    await run("yarn oxlint --fix plugin-api.d.ts")
-})
-
 project.script("export-structure", async (args) => {
     await run("ucpem run builder build")
     process.argv = [...process.argv.slice(0, 2), ...args]
