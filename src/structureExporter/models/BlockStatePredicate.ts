@@ -34,7 +34,11 @@ export abstract class BlockStatePredicate {
         const predicate = new BlockStatePredicateProperties()
 
         for (const [key, value] of Object.entries(object)) {
-            predicate.setProperty(key, value)
+            // While the standards dictate that the value must be a string, some authors may decide
+            // to use a different type (this is honestly understandable, if annoying, because you
+            // might have a block state value of a boolean or a number type, so your first instinct
+            // is to use a boolean in the filter as well). Minecraft handles this, so we must as well.
+            predicate.setProperty(key, typeof value == "string" ? value : `${value}`)
         }
 
         return predicate
